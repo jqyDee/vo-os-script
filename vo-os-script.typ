@@ -18,9 +18,9 @@
 #align(center)[
   Jegliche Informationen stammen aus den Foliensätzen der Lehrveranstaltung \
   und demnach der zugrundeliegenden Quelle: \
-  _Operating System Concepts \
-  von Abraham Silberschatz, Peter Bare Galvin und Greg Gagne \
-  (Tenth Edition)_
+  _Operating System Concepts (Tenth Edition)\
+  von Abraham Silberschatz, Peter Baer Galvin und Greg Gagne
+  _
 ]
 
 #pagebreak()
@@ -396,6 +396,8 @@ einen Heap auf dem Speicher dynamisch alloziert werden kann.
 - `waiting`: warten auf Ereignis
 - `finished`: Ausführung abgeschlossen
 
+#figure(image("./images/process-zustand.png", width: 70%))
+
 == Prozesskontrollblock
 #grid(
   columns: (50%, 50%),
@@ -416,43 +418,6 @@ einen Heap auf dem Speicher dynamisch alloziert werden kann.
 
 == Linux
 #figure(image("./images/process-linux.png", width: 80%))
-
-= Prozessplanung
-Die Prozesse in der Prozessqueue werden von Prozessplaner einem CPU-Kern
-zugeordnet. Dies ist sinnvoll um die CPU-Auslastung zu maximieren und Prozesse
-möglichst effizient und schnell einem CPU-Kern zuzuordnen. Dabei muss die
-Prozessqueue verwaltet werden und die einzelnen CPU-Kerne, sowie I/O und
-Interrupts auf Bereitschaft überprüft werden. Oft gibt es verschiedenen
-Warteschlangen zwischen denen gewechselt werden muss.
-
-== Queues
-#figure(image("./images/process-queue.png", width: 80%))
-
-Prozesse die bereit sind auf der CPU ausgeführt zu werden, warten in der
-Ready-Queue darauf auf der CPU ausgeführt zu werden. Ist "Platz" auf der CPU
-wird ein neuer Prozess aus der Ready-Queue auf der CPU ausgeführt. Während dem
-Ausführen des Prozesses kann es dazu kommen das dieser die CPU wieder verlässt.
-Dies passiert hier wenn eine I/O Anfrage anfällt, der Timer des Prozesses
-abgelaufen ist, ein Kindprozess erstellt werden soll oder ein Interrupt die
-Ausführung unterbricht. Wenn diese Anfragen/usw. verarbeitet wurden wird der
-Prozess erneut in die Ready-Queue eingefügt. Dies passiert solange bis der
-Prozess fertig ausgeführt ist und anstatt erneut in die Ready-Queue zu gelangen
-den Kreislauf verlässt.
-
-== Contextswitch
-#grid(
-  columns: (50%, 50%),
-  align: (left, center),
-  [
-    Bei dem Kontext handelt es sich um die CPU Register, Zustand und
-    Speicherinformation welche im Prozesskontrollblock gespeichert sind. Bei
-    einem Kontextswitch wird der Kontrollblock eines Prozesses gespeichert und
-    der eines anderen/neuen geladen. Wie bereits oben erklärt finden _ständig_
-    Contextswitches statt, hervorfgerufen durch die oben erklärten
-    Anfragen/Interrupts/usw. .
-  ],
-  figure(image("./images/process-contextswitch.png", width: 90%)),
-)
 
 = Prozessoperationen
 == Prozesserstellung
@@ -2467,9 +2432,9 @@ wird heutzutage hauptsächlich genutzt.
 )
 
 == FAT Filesystem
-*FAT* (File Allocation Table) ist ein simples aber dementrspechend naives
+*FAT* (File Allocation Table) ist ein simples und dementrspechend naives
 Dateisystem. Der Datenträger ist in gleich große Cluster unterteilt (meist
-16KiB). Eine  Datei wird durch eine linked-List von einem oder mehr dieser
+16KiB). Eine  Datei wird durch eine linked-List von einem oder mehrere dieser
 Cluster dargestellt. Eine Indexierungstabelle zu Beginn der Partition zeigt auf
 das Startcluster einer Datei. Folders sind spezielle Dateien die auf die
 Dateien/cluster in dem Folder zeigen. Das FAT Dateisystem schützt nicht gegen
@@ -2493,6 +2458,585 @@ Fehler im Journal werden durch das inkludieren der checksum in den Journal
 Einträgen verhindert.
 
 == Multi-Disk Filesystem
-Multi-Disk-Filesystems kombinieren Ideen von RAID und dem Journaling Dateisystem. Beispiel für diese Dateisysteme sind ZFS oder btrfs. Das Dateisystem kann hier über mehrere Datenträger verteilt sein. Dies passiert ohne ein RAID Array. Diese Dateisysteme schützen vor bit-rot durch das Speichern der checksum von jeder Datei. Duplikate werden nur einmal auf dem Dateisystem gespeichert und durch Referenzen zugänglich gemacht.
+Multi-Disk-Filesystems kombinieren Ideen von RAID und dem Journaling
+Dateisystem. Beispiel für diese Dateisysteme sind ZFS oder btrfs. Das
+Dateisystem kann hier über mehrere Datenträger verteilt sein. Dies passiert
+ohne ein RAID Array. Diese Dateisysteme schützen vor bit-rot durch das
+Speichern der checksum von jeder Datei. Duplikate werden nur einmal auf dem
+Dateisystem gespeichert und durch Referenzen zugänglich gemacht.
 
-= Scheduling
+= CPU Scheduling / Planung
+Das Scheduling bzw. die Prozessplangin wird bei der Multi-Core-Programmierung
+benötigt um eine maximale Prozessorauslastung zu erzielen. Während der
+Prozessausführung unerscheiden wir zwischen 2 Phasen, dem CPU-Burst und dem I/O
+Burst. 
+
+I/O bound processes sind demnach Programme die eine große Anzahl kurzer
+CPU-Bursts benötigen. CPU-bound processes haben eine kleine Anzahl an langen
+CPU-Bursts. Die CPU-Bursts werden über die parallelen Prozesse aufgeteilt.
+
+*Ablauf:* \
+Die Prozesse in der Prozessqueue werden von Prozessplaner einem CPU-Kern
+zugeordnet. Dies ist sinnvoll um die CPU-Auslastung zu maximieren und Prozesse
+möglichst effizient und schnell einem CPU-Kern zuzuordnen. Dabei muss die
+Prozessqueue verwaltet werden und die einzelnen CPU-Kerne, sowie I/O und
+Interrupts auf Bereitschaft überprüft werden. Oft gibt es verschiedenen
+Warteschlangen zwischen denen gewechselt werden muss.
+
+#figure(image("./images/process-queue.png", width: 80%))
+
+Prozesse die bereit sind auf der CPU ausgeführt zu werden, warten in der
+Ready-Queue darauf auf der CPU ausgeführt zu werden. Die Queue ist nach
+verschiedenen Attributen geordnet. Ist "Platz" auf der CPU wird ein neuer
+Prozess aus der Ready-Queue auf der CPU ausgeführt. Während dem Ausführen des
+Prozesses kann es dazu kommen das dieser die CPU wieder verlässt. Dies passiert
+hier wenn eine I/O Anfrage anfällt, der Timer des Prozesses abgelaufen ist, ein
+Kindprozess erstellt werden soll oder ein Interrupt die Ausführung unterbricht.
+Wenn diese Anfragen/usw. verarbeitet wurden wird der Prozess erneut in die
+Ready-Queue eingefügt. Dies passiert solange bis der Prozess fertig ausgeführt
+ist und anstatt erneut in die Ready-Queue zu gelangen den Kreislauf verlässt.
+
+Das Dispatchermodule ist zuständig für die Prozessübergabe. Es führt den
+Context- und Modeswitch (Kernelmode, Usermode) aus und springt an die richtige
+Stelle im Programm des Prozesses. Als Dispatchlatenz bezeichnen wir die Zeit,
+die für das Starten und Stoppen bzw. den Contextswitch benötigt wird.
+
+== Contextswitch
+#grid(
+  columns: (50%, 50%),
+  align: (left, center),
+  [
+    Bei dem Kontext handelt es sich um die CPU Register, Zustand und
+    Speicherinformation welche im Prozesskontrollblock gespeichert sind. Bei
+    einem Kontextswitch wird der Kontrollblock eines Prozesses gespeichert und
+    der eines anderen/neuen geladen. Wie bereits oben erklärt finden _ständig_
+    Contextswitches statt, hervorfgerufen durch die oben erklärten
+    Anfragen/Interrupts/usw. .
+  ],
+  figure(image("./images/process-contextswitch.png", width: 90%)),
+)
+
+== Scheduling Typen
+Wir unterscheiden zwischen Präemptiv und Kooperativ. Wie bereits beim Kernel
+erklärt kann bei einem Kooperativen Kernel ein Prozess die CPU nur freiwillig
+verlassen. Bei einem Präemptiven Kernel kann das Betriebssystem entscheiden
+wann der Prozess die CPU verlässt. 
+
+Kooperative Betriebssysteme/Kernels sind extrem selten. Präemptive
+Betriebssysteme/Kernels sind zum Beispiel Linux, Windows und MacOS.
+
+== Scheduling Kriterien
+Als Planungskriterien können die Prozessorauslastung, der Durchsatz, die
+Bearbeitungszeit, die Wartezeit eines Prozesses bzw. die Antwortzeit eines
+Prozesses herangezogen werden.
+
+== CPU-Burst Prediction
+Um die CPU-Burst Zeit vorherzusagen nutzen wir einen exponentielle Glättung.
+
+#figure(image("./images/sched-cpu_burst_prediction.png", width: 80%))
+
+Die Formel für die Vorhersage ist:
+$
+cal(tau)_(n+1) = cal(alpha) dot t_n + (1 - cal(alpha)) dot cal(tau)_n
+$
+wobei:
+- $cal(tau)_(n+1)$: Vorhersage für den nächsten CPU-Burst
+- $t_n$: tatsächliche Dauer des letzten CPU-Burst
+- $cal(tau)_n$: Historie der vorigen CPU-Bursts
+- $cal(alpha)$: Glättungsfaktor
+
+*Bedeutung des Faktors $cal(alpha)$:*
+- $cal(alpha) = 0$: Nur Historie!
+- $cal(alpha) = 1$: Nur letzte tatsächliche Zeit!
+- $cal(alpha) = 0.5$: Historie und tatsächliche Zeit gleich gewichtet!
+
+*Konstante $cal(tau)_0$:* ist der Gesamtsystemdurchschnitt
+
+
+== Scheduling Algorithmus - First come First server (FCFS)
+*Beispiele:*
+
+$
+P_1: "Burst time": 24 \
+P_2: "Burst time": 3 \
+P_3: "Burst time": 3
+$\
+
+#grid(columns: (50%, 50%),
+  [
+    - Ankunftsreihenfolge:
+    $
+    P_1, P_2, P_3
+    $
+    
+    - Wartezeiten:
+    $
+    P_1: 0; P_2: 24; P_3: 27 \ \
+    emptyset = (0+24+27)/3 = 17
+    $
+  ],
+  [
+    - Ankunftsreihenfolge:
+    $
+    P_2, P_3, P_1
+    $
+    
+    - Wartezeiten:
+    $
+    P_2: 0; P_3: 3; P_1: 6 \ \
+    emptyset = (0+3+6)/3 = 3
+    $
+  ]
+)
+
+Hier findet sich ein Konvoi Effekt, spätere Prozesse müssen auf vorherige
+Prozesse warten. Egal ob diese wesentlich kürzer bzw. länger sind. Dieser
+Ansatz ist Kooperativ
+
+== Scheduling Algorithmus - Shortest process first
+Wenn wir nun alle ankommenden Prozesse aufsteigend nach ihrer geschätzten
+Burst-Zeit sortieren und in dieser Reihenfolge ausführen, bekommen wir eine
+minimale durchschnittliche Wartezeit. Auch dieser Ansatz ist Kooperativ.
+
+*Beispiel:*
+$
+P_1: "Burst time": 5 \
+P_2: "Burst time": 8 \
+P_3: "Burst time": 7 \
+P_4: "Burst time": 3 \
+$\
+
+- Reihenfolge:
+$P_4, P_1, P_3, P_2$
+
+- Wartezeiten:
+$P_4: 0, P_1: 3, P_3: 9, P_4: 16$ \ \
+$emptyset = (0+3+9+26)/4 = 7$
+
+== Scheduling Algorithmus - Process with shortest remaining first
+Dies ist die Präemptive version des _Shortest process first_ Ansatzes. Die
+ankommenden Prozesse werden in eine Queue einsortiert und ausgeführt wenn die
+Burst-Zeit kürzer als die des geradigen Prozesses ist.
+
+*Beispiel:*
+$
+P_1: "arrival": 0; "Burst time": 8 \
+P_2: "arrival": 1; "Burst time": 4 \
+P_3: "arrival": 2; "Burst time": 9 \
+P_4: "arrival": 3; "Burst time": 5 \
+$
+
+- Ganttdiagramm (Wartezeiten):
+#figure(image("./images/sched-shortest_remaining.png", width: 70%))
+
+- durchschnittliche Wartezeit:
+$
+((10-1) + (1-1) + (17-2) + (5-3))
+/
+4 = 6.5
+$
+
+== Scheduling Algorithmus - Round-Robin Präemptiv
+Der Round-Robin ist der Präemptive Version zu dem _First come First serve_
+Ansatz. Für diesen Ansatz definieren wir ein *CPU-Zeitquantum* $q$. Dieses
+Zeitquantum liegt normalerweise zwischen 10 bis 100 Millisekunden. Im Vergleich
+zu einem Contextswitch ist dies eine lange Zeit. Wir wählen $q$ so, dass $q >
+80%$ der CPU-Bursts. Die Prozesse werden, wie auch schon bei dem _FCFS_ Ansatz,
+in eine FIFO eingereiht und der Reihe nach abgearbeitet. Dabei darf jeder
+Prozess eine maximale Zeit von einem Zeitquantum $q$ auf der CPU arbeiten. Der
+Prozess gibt demnach die CPU frei wenn das Zeitquantum erschöpft bzw. der
+Prozess abgeschlossen ist.
+
+#figure(image("./images/sched-round_robin.png", width: 80%))
+
+*Beispiele:*
+$
+P_1: "Burst time": 24 \
+P_2: "Burst time": 3 \
+P_3: "Burst time": 3 \
+$
+
+- *$q = 4$:*
+#figure(image("./images/sched-round_robin_q4.png", width: 80%))
+
+durschnittliche Wartezeit:
+$
+((10-4) + (4-0) + (7-0))
+/
+3 = 5.66
+$
+
+
+- *$n = 3; "Burst time": 10$*
+  - *$q = 1$*
+  Laufzeit: $(28+29+30)/3 = 29$ \ \
+  Wartezeit: $(18+19+20)/3 = 19$ \ \
+  - *$q = 10$*
+  Laufzeit: $(10+20+30)/3 = 20$ \ \
+  Wartezeit: $(0+10+20)/3 = 10$
+
+== Scheduling Algorithmus - Prioritäts Planung
+Jder Prozess hat eine Priorität (z.b. von $[0, 4095]$). Ein kleinerer Wert bedeutet eine höherer Priorität. Der Prozess mit der höchsten Priorität wird der CPU zugewiesen. Das Prinzip funktioniert sowohl Präemptiv als auch Kooperativ. Da die Queue nach der Priorität sortiert wird kann es dazu kommen, dass manche Prozesse mit einer geringen Priorität nie ausgeführt werden. Dies kann behoben werden in dem die Priorität mit dem "Alter" des Prozesses zunimmt. Das Suchen des Prozesses mit der höchsten Priorität hat eine Laufzeit von $cal(O)(n)$.
+
+*Beispiele:*
+- Kooperativ:
+$
+P_1: "Burst time": 10; "Priority": 3 \
+P_2: "Burst time": 1; "Priority": 1 \
+P_3: "Burst time": 2; "Priority": 4 \
+P_4: "Burst time": 1; "Priority": 5 \
+P_5: "Burst time": 5; "Priority": 2 \
+$
+
+#figure(image("./images/sched-priority_cooperative.png", width: 80%))
+
+durschnittliche Wartezeit:
+$
+(0 + 1 + 6 + 16 + 18) / 5 = 18
+$
+
+- Präemptiv:
+$
+P_1: "Burst time": 4; "Priority": 3 \
+P_2: "Burst time": 5; "Priority": 2 \
+P_3: "Burst time": 8; "Priority": 2 \
+P_4: "Burst time": 7; "Priority": 1 \
+P_5: "Burst time": 3; "Priority": 3 \
+$
+
+#figure(image("./images/sched-priority_preemptive.png", width: 80%))
+
+durschnittliche Wartezeit:
+$
+( (20 + 24 - 22) + (7 + 11 - 9 + 15 - 13) + (9 + 13 - 11 + 16 - 15) + (22 + 26 - 24) )
+/5 = 13.8
+$
+
+== Multilevel Queue Scheduling
+#grid(columns: (60%, 40%), 
+  [
+    Im Vergleich zum Priority Queue Ansatz wird hier jeder Priorität eine Queue
+    zugeordnet. Das heißt alle Prozesse mit Priorität $k$ kommen in die Zugehörige
+    Queue $q_k$ die alle Prozesse mit Priorität $k$ beinhaltet.
+
+
+    Wir Unterscheiden zwischen Vorder- und Hintergrundprozessen. Die
+    Vordergrundprozesse haben eine hohe Priorität und werden mit dem Round-Robin
+    Ansatz abgearbeitet. Die Hintergrund Prozesse haben eine geringere Priorität
+    und werden in _FCFS_ abgearbeitet.
+  ],
+  figure(image("./images/sched-seperate_priority.png", width: 80%))
+)
+#figure(image("./images/sched-seperate_priority2.png", width: 80%))
+
+== Multilevel Feedback Queue Scheduling
+Ähnelt dem Multilevel Queue Scheduling stark. Hier ist es jedoch möglich, dass
+Prozesse von einer Prioritäts Queue in eine andere verschoben werden. Meist
+werden die Prozesse nach CPU-Burst Zeit und nach Zeit in der Queue in die
+jeweilige höhere bzw. niedrigere Queue verschoben.
+
+Prozesse werden herabgestuft, das Zeitquantum erschöpft wurde, und
+heraufgestuft wenn der Prozess bereits lange in der Queue auf Ausführung
+wartet.
+
+#figure(image("./images/sched-multilevel_feedback.png", width: 80%))
+
+= Thread Scheduling / Planung
+*Contention Conflict:*
+
+Wir Unterscheiden zwischen 2 Konfilktarten:
+
+Beim Prozesszugangskonflikt (PTHREAD_SCOPE_PROCESS) konkurrieren
+Benutzer-Threads innerhalb eines Prozesses um die Zuteilung auf Kernel-Threads.
+Dabei kommen Many-to-One- oder Many-to-Many-Modelle zum Einsatz, und die
+Planung erfolgt anhand einer vom Programmierer festgelegten Priorität.
+
+Beim Systemzugangskonflikt (PTHREAD_SCOPE_SYSTEM) wird jedem Benutzer-Thread
+ein eigener Kernel-Thread zugeordnet (One-to-One-Modell). Die Threads
+konkurrieren dabei systemweit um Rechenzeit. Dieses Modell ist die einzige
+Option unter Linux und macOS.
+
+*Beispiel:*
+```c
+#include <pthread.h>
+#include <stdio.h>
+#define NUM_THREADS 5
+
+// Each thread will begin control in this function
+void *runner(void *param) {
+  // do some work ...
+  pthread_exit(0);
+}
+
+int main(int argc, char *argv[]) {
+  int i, scope;
+  pthread_t tid[NUM_THREADS];
+  pthread_attr_t attr;
+
+  // get the default attributes
+  pthread_attr_init(&attr);
+
+  // first inquire on the current scope
+  if (pthread attr getscope(&attr, &scope) != 0) {
+    fprintf(stderr, "Unable to get scheduling scope∖n");
+  } else {
+    if (scope == PTHREAD_SCOPE_PROCESS)
+      printf("PTHREAD SCOPE PROCESS");
+    else if (scope == PTHREAD_SCOPE_SYSTEM)
+      printf("PTHREAD SCOPE SYSTEM");
+    else
+      fprintf(stderr, "Illegal scope value.∖n");
+  }
+
+  // set the scheduling algorithm to PCS or SCS
+  pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+
+  // create the threads
+  for (i = 0; i < NUM_THREADS; i++)
+    pthread_create(&tid[i],&attr,runner,NULL);
+
+  // now join on each thread
+  for (i = 0; i < NUM_THREADS; i++)
+    pthread_join(tid[i], NULL);
+}
+```
+
+= Multiprocessor Scheduling / Planung
+Wir untescheiden zwischen asymmetrischer und symmetrischer
+Multiprozessorplanung. Bei der Asymmetrischen Planung ist ein CPU Kern für die
+Planung zuständig. Bei der Synchronen Planung ist jeder CPU Kern für seine
+eigene Planung zuständig. 
+
+Zudem Unterscheiden wir zwischen einer gemeinsamen und einer privaten
+Threadqueue. Auf die gemeinsame Queue wird von allen Threads zugegriffen. Bei
+der privaten Queue hat jeder Prozessor eine eigene Warteschlange. 
+
+Beide Ansätze haben vor und Nachteile. Bei der gemeinsamen Queue kann es zu
+race conditions kommen, bzw. das synchronisieren zum Bottleneck werden. Die
+private Queue hat eine bessere Performance, auf Kosten eines deutlich
+erschwerten Lastausgleich.
+
+#figure(image("/images/sched-multi_proc_queues.png", width: 80%))
+
+== Multicore Prozessoren
+Mehrere Hardware Threads pro CPU Kern. Da bei einem Speicheraufruf die CPU eine
+lange Wartezeit hat, wird versucht während dieses Speicheraufrufs einen anderen
+Thread auf der CPU laufen zu lassen. 
+
+$
+M: "Memory stall cycle" \
+C: "compute cycle"
+$
+
+#figure(image("/images/sched-mem_stall_prevention.png", width: 80%))
+
+Neue Prozessoren ermöglichen außerdem ein sogenanntes Chip-Multithreading bzw.
+Hyperthreading(Intel). Dabei werden jedem CPU Kern 2 Hardware Threads
+zugeordnet, was für eine Quad-Core Prozessor ein System mit 8 logischen
+Prozessoren ergibt. Es ist jedoch anzumerken, dass pro CPU Kern maximal 1
+Hardware Thread gleichzeitig ausgeführt werden kann, da der cache und die
+pipelines zwischen den beiden Hardwarethreads geteilt wird.
+
+Wir unterscheiden zudem zwischen Coarsed- und Finegrained Multithreading. Bei
+Coarsedgrained Multithreading wird ein Thread solange ausgeführt bis ein lange
+Unterbrechung, wie eine Memory stall vorliegt. Dann findet ein großer
+Contextswitch statt, bei dem die gesamte Instruktions Pipeline geflushed werden
+muss. 
+
+Auf Finegrained Systemen findet ein kleiner Contextswitch statt. Dieser ist
+Hardware unterstützt.
+
+Die wirkliche Planung auf Multi-Core-Systemen wird in 2 Ebenen aufgeteilt. Die
+Kernelebene und die Betriebssystemebene. Auf der Betriebssystemebene weredn die
+Softwarethreads auf die Hardware-Threads (bzw. logischen Kerne) aufgeteilt. Auf
+der Kernelebene werden die Hardware-Threads mittels Round-Robin Algorithmus und
+einer Priorität auf den physischen CPU Kern gescheduled.
+
+== Load Balancing
+Es ist sinnvoll die Arbeit des Systems gleichmäßig auf alle CPU Kerne
+aufzuteilen. Hier unterscheiden wir zwischen Push- und Pullmigration. Bei der
+Pushmigration wird die Auslastung der Kerne in regelmäßigen Abständen geprüft
+und Aufgaben von überlasteten Kernen auf andere Kerne mit weniger Auslastung
+verschoben. Bei der Pullmigration werden wartenden Aufgaben von überlasteten
+Kernen, von Kernen mit wenig oder keiner Auslastung, abgezogen.
+
+== Processor Affinity
+Threadaffinität *zu* einem Prozessor bedeutet, dass ein Thread bevorzugt auf
+demselben Prozessor ausgeführt wird, um den Cachezugriff zu optimieren. Bei
+einem Lastausgleich kann diese Affinität verloren gehen.
+
+Soft Affinity, versucht Threads auf demselben Prozessor laufen zu lassen,
+jedoch ohne Garantie.
+
+Hard Affinity, erlaubt das angeben einer festen Menge an Prozessoren, auf denen
+ein Thread ausgeführt werden darf.
+
+= Real-Time CPU Scheduling / Planung
+Echtzeitsysteme sind Computersysteme, die Aufgaben innerhalb einer vorgegebenen
+Zeit erledigen müssen. Klassische UNIX-Systeme arbeiten mit Timesharing und
+reagieren auf Unterbrechungen, garantieren aber keine festen Zeiten.
+Ereignis-basierte Echtzeitsysteme verwenden Prioritäten und können laufende
+Aufgaben zugunsten wichtigerer unterbrechen. Weiche Echtzeitsysteme versuchen,
+Termine für kritische Aufgaben einzuhalten, geben aber keine absolute Garantie.
+Harte Echtzeitsysteme müssen Aufgaben strikt fristgerecht erledigen, ein
+Verpassen der Deadline ist nicht akzeptabel. 
+
+*Interrupt-Latency:*
+Unterbrechungsverzögerung ist die Zeitspanne zwischen dem Eintreffen einer
+Unterbrechung und dem Start der zugehörigen Unterbrechungsroutine. Das
+bedeutet, vom Moment, in dem eine Unterbrechung erkannt wird, bis zu dem Punkt,
+an dem die entsprechende Bearbeitung beginnt, vergeht eine gewisse Zeit.
+
+*Dispatch-Latency:*
+Dispatch-Verzögerung bezeichnet die Zeit, die benötigt wird, um einen laufenden
+Prozess zu stoppen und einen neuen Prozess zu laden. In dieser sogenannten
+Konfliktphase werden alle Prozesse im Kernel-Modus unterbrochen und Ressourcen
+werden für Prozesse mit höherer Priorität freigegeben. Erst danach kann das
+System mit der Bearbeitung des neuen Prozesses beginnen.
+
+#grid(columns: (50%, 50%), 
+figure(image("./images/sched-real_time_interrupt.png", width: 76%)),
+figure(image("./images/sched-real_time_dispatch.png", width: 90%)),
+)
+
+== Priority-based Scheduling
+Bei der prioritätsbasierten Echtzeitplanung werden Aufgaben (Prozesse) nach
+ihrer Priorität eingeplant und können von höher priorisierten Aufgaben
+unterbrochen werden (präemptiv). Diese Methode eignet sich oft für weiche
+Echtzeitsysteme.
+
+Die Prozesse wiederholen sich regelmäßig (periodisch) und haben jeweils eine
+Periode $p$, eine Frist $d$, und eine Bearbeitungszeit $t$. Die
+Bearbeitung eines Prozesses muss im Zeitraum von 0 bis zur Frist $d$, die
+wiederum kleiner oder gleich der Periode $p$ ist, abgeschlossen sein. Die
+periodische Aufgaberate gibt an, wie oft eine Aufgabe pro Zeiteinheit kommt,
+also $1/p$.
+
+Die Auslastung der CPU durch einen Prozess $P_i$ wird mit $U_i = t_i/p_i$
+berechnet, also als Verhältnis von Bearbeitungszeit zu Periode.
+
+#figure(image("./images/sched-real_time_prio_based.png", width: 90%))
+
+== Rate-Monotonic Scheduling
+Bei der ratenmonotonischen Planung wird die Priorität eines Prozesses durch den
+Kehrwert seiner Periode bestimmt: Prozesse mit kürzeren Perioden (die häufiger
+laufen müssen) erhalten eine höhere Priorität, während Prozesse mit längeren
+Perioden eine niedrigere Priorität bekommen.
+
+*Beispiel:*
+- Prozess $P_1$ hat eine Periode von 50 (läuft alle 50 Zeiteinheiten) und
+  eine Bearbeitungszeit von 20. Seine Auslastung ist $U_1 = 0.4$.
+- Prozess $P_2$ hat eine Periode von 100 und braucht 35 Zeiteinheiten zur
+  Bearbeitung. Seine Auslastung ist $U_2 = 0.35$. Die Gesamtauslastung $U
+  = U_1 + U_2 = 0,75$ ist kleiner als 1, das heißt, beide Prozesse können
+  rechtzeitig fertiggestellt werden.
+
+#figure(image("./images/sched-real_time_rate_monotonic.png", width: 90%))
+
+== Earliest-Deadline-First Scheduling
+Bei einer Planung nach der frühestmöglichen Deadline werden die Prioritäten der
+Prozesse dynamisch und immer wieder neu nach ihren aktuellen Deadlines
+vergeben: Der Prozess mit der nächsten Deadline erhält die höchste Priorität.
+
+Im gezeigten Beispiel hat Prozess $P_1$ eine Periode von 50 und eine
+Bearbeitungszeit von 25, während Prozess $P_2$ eine Periode von 80 und eine
+Bearbeitungszeit von 35 hat. Die Gesamtauslastung der CPU berechnet sich zu $U
+= 0.9375$. Dieser Wert liegt zwischen der Schranke für zwei Prozesse nach der
+ratenmonotonischen Planung 0.83 und 1. Das bedeutet, das System ist für
+dieses Beispiel planbar.
+
+Im schlimmsten Fall gilt für die maximale CPU-Ausnutzung eine obere Grenze $U
+<= N dot (root(N, 2) - 1)$, wobei $N$ die Anzahl der Prozesse ist. Bei einem
+Prozess sind 100% Auslastung möglich, bei zwei etwa 83%, und bei sehr vielen
+Prozessen nähert sich die Grenze etwa 69%.
+
+#figure(image("./images/sched-real_time_earliest_deadline.png", width: 90%))
+
+== Proportional Share Scheduling
+Bei der proportionalen Anteilplanung wird die gesamte verfügbare Prozessorzeit
+in Anteile aufgeteilt und den verschiedenen Prozessen zugewiesen. Jeder Prozess
+erhält entsprechend seinem Bedarf einen Anteil der gesamten Prozessorzeit.
+
+Im Beispiel stehen insgesamt 100 Anteile zur Verfügung. Die Prozesse A, B und C
+erhalten 50, 15 und 20 Anteile, was zusammen 85 Anteile ergibt. Es bleiben noch
+15 Anteile übrig. Da Prozess D aber 30 Anteile benötigt, kann er nicht
+zugelassen werden, weil die verfügbare Gesamtzeit überschritten würde.
+
+Die Tabelle zeigt die jeweiligen Anteile und die CPU-Nutzung pro Prozess –
+Prozess D wird abgelehnt, weil nicht genug Ressourcen übrig sind.
+
+== POSIX Real-Time Scheduling
+Der POSIX.1b-Standard definiert zwei Klassen für Echtzeit-Threads. Bei der
+Planungsrichtlinie SCHED_FIFO werden Threads nach dem Prinzip _FCFS_ und mit
+einer FIFO-Warteschlange geplant, wobei Threads mit gleicher Priorität keine
+feste Zeitaufteilung erhalten. Bei SCHED_RR (Round Robin) ist die
+Funktionsweise ähnlich, allerdings gibt es eine Zeitaufteilung für Threads mit
+gleicher Priorität – sie bekommen also eine festgelegte Zeitscheibe zugewiesen.
+Programmatisch lassen sich die Planungsrichtlinien mit den POSIX-Funktionen
+pthread_attr_getsched_policy und pthread_attr_setsched_policy abrufen und
+setzen.
+
+```c
+#include <pthread.h>
+#include <stdio.h>
+#define NUM_THREADS 5
+
+// Each thread will begin control in this function
+void *runner(void *param) {
+  // do some work ...
+  pthread_exit(0);
+}
+
+int main(int argc, char *argv[]) {
+  int i, policy;
+  pthread_t tid[NUM_THREADS];
+  pthread_attr_t attr;
+
+  // get the default attributes
+  pthread_attr_init(&attr);
+
+  // get the current scheduling policy
+  if (pthread_attr_getschedpolicy(&attr, &policy) != 0) {
+    fprintf(stderr, "Unable to get policy.∖n");
+  } else {
+    if (policy == SCHED_OTHER)
+      printf("SCHED_OTHER∖n");
+    else if (policy == SCHED_RR)
+      printf("SCHED_RR∖n");
+    else if (policy == SCHED_FIFO)
+      printf("SCHED_FIFO∖n");
+  }
+
+  // set the scheduling policy - FIFO, RR, or OTHER
+  if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) != 0)
+    fprintf(stderr, "Unable to set policy.∖n");
+
+  // create the threads
+  for (i = 0; i < NUM_THREADS; i++)
+    pthread_create(&tid[i],&attr,runner,NULL);
+
+  // now join on each thread
+  for (i = 0; i < NUM_THREADS; i++)
+    pthread_join(tid[i], NULL);
+}
+```
+
+== Linux Scheduling
+Im Linux-System gibt es zwei Planertypen: den völlig fairen Planer (CFS) und
+den Echtzeit-Planer. Beim völlig fairen Planer wird die Prozesspriorität durch
+den Nice-Wert bestimmt, der zwischen -20 (höchste Priorität) und 19 (niedrigste
+Priorität) liegt. Standardmäßig ist der Wert 0. Die Verteilung der CPU-Anteile
+hängt davon ab. Statt eines festen Zeitquantums sorgt eine gezielte Verzögerung
+dafür, dass jeder Prozess mindestens einmal ausgeführt wird. Außerdem wird die
+Ausführungsreihenfolge nach der virtuellen Prozesslaufzeit geregelt: Die
+Laufzeit wird je nach Priorität angepasst, und der Prozess mit der geringsten
+virtuellen Laufzeit wird zuerst ausgeführt.
+
+Beim Echtzeit-Planer gibt es Echtzeitprozesse mit sehr hoher Priorität (Werte
+zwischen 0 und 99, mit SCHED_FIFO und SCHED_RR), während normale Prozesse
+niedrigere Priorität haben (Werte zwischen 100 und 139, was auf die Nice-Werte
+[−20, 19] abgebildet wird)
+
+= Libraries
+
+
