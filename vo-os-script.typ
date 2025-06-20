@@ -10,9 +10,19 @@
 #align(center)[
   _Erstellt mit den hervorragenden Foliensätzen von Peter Thoman \
   und den Foliensätzen von Herr Radush, \
-  die die Lehrveranstaltung Betriebssysteme leiten.
+  die die Lehrveranstaltung Betriebssysteme \
+  an der Universität Innsbruck leiten.
   _
 ]
+#v(2cm)
+#align(center)[
+  Jegliche Informationen stammen aus den Foliensätzen der Lehrveranstaltung \
+  und demnach der zugrundeliegenden Quelle: \
+  _Operating System Concepts \
+  von Abraham Silberschatz, Peter Bare Galvin und Greg Gagne \
+  (Tenth Edition)_
+]
+
 #pagebreak()
 
 #outline()
