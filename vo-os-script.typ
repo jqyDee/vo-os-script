@@ -2,8 +2,8 @@
 
 #show: generic.with(
   title: "VO Operating Systems",
-  title_extra: "V1",
-  date: "16.06.2025",
+  title_extra: "",
+  date: "20.06.2025",
 )
 
 #v(6cm)
@@ -21,6 +21,12 @@
   _Operating System Concepts (Tenth Edition)\
   von Abraham Silberschatz, Peter Baer Galvin und Greg Gagne
   _
+]
+#v(2cm)
+#align(center)[
+  Der Sourcecode zu dem Script kann auf Github unter dem Link \
+  #link("https://github.com/jqyDee/vo-os-script")[https://github.com/jqyDee/vo-os-script] \
+  eingesehen werden!
 ]
 
 #pagebreak()
@@ -682,41 +688,44 @@ Um eine Pipe zu erstellen muss der pipe Systemcall vor dem erstellen des
 Kind/Arbeitsprozesses aufgerufen werden. Passiert das nicht verbindet die Pipe
 zu dem gerade laufenden Prozess. Nach dem fork Aufruf sind Eltern- und
 Kindprozess mit der pipe verbunden.
+
 #figure(image("./images/ipc-unnamed_pipe.png", width: 80%))
-```c
-void parent(const int pipefd[2]) {
-  close(pipefd[0]);                   // Close read-end
 
-  const char* msg = "Hello World!";
-  write(pipefd[1], msg, strlen(msg));
-  close(pipefd[1]);                   // Close write-end
-                                      // -> reader will see EOF
+#box()[
+  ```c
+  void parent(const int pipefd[2]) {
+    close(pipefd[0]);                   // Close read-end
 
-  wait(NULL);                         // Wait for child
-}
+    const char* msg = "Hello World!";
+    write(pipefd[1], msg, strlen(msg));
+    close(pipefd[1]);                   // Close write-end
+                                        // -> reader will see EOF
 
-void child(const int pipefd[2]) {
-  close(pipefd[1]);                   // Close write-end
-  char buf;
-  while(read(pipefd[0], &buf, 1) > 0) {
-    write(STDOUT_FILENO, &buf, 1);
+    wait(NULL);                         // Wait for child
   }
-  write(STDOUT_FILENO, "\n", 1);
-  close(pipefd[0]);                   // Close read-end too
-}
 
-int main(void) {
-  int pipefd[2];                      // pipefd[0]: read-end
-                                      // pipefd[1]: write-end
-  if(pipe(pipefd) != 0) return EXIT_FAILURE;
+  void child(const int pipefd[2]) {
+    close(pipefd[1]);                   // Close write-end
+    char buf;
+    while(read(pipefd[0], &buf, 1) > 0) {
+      write(STDOUT_FILENO, &buf, 1);
+    }
+    write(STDOUT_FILENO, "\n", 1);
+    close(pipefd[0]);                   // Close read-end too
+  }
 
-  const pid_t cpid = fork();
-  if(cpid == -1) return EXIT_FAILURE;
+  int main(void) {
+    int pipefd[2];                      // pipefd[0]: read-end
+                                        // pipefd[1]: write-end
+    if(pipe(pipefd) != 0) return EXIT_FAILURE;
 
-  if(cpid == 0) child(pipefd);
-  else          parent(pipefd);
-}
-```
+    const pid_t cpid = fork();
+    if(cpid == -1) return EXIT_FAILURE;
+
+    if(cpid == 0) child(pipefd);
+    else          parent(pipefd);
+  }
+  ```]
 
 == Named Pipe (FIFO)
 Named Pipes oder auch FIFO genannt werden von POSIX unterstützt und
@@ -730,37 +739,38 @@ geöffnet werden. Eine Kommunikation ist jedoch erst möglich wenn beide Enden
 (Read/Write) geöffnet wurden. Wenn nur 1 Prozess schreibt und 1 Prozess liest
 ist die Synchronisation durch den Kernel sichergestellt.
 
-```c
-void create_named_pipe_reader(void) {
-  const char* name = "named_pipe";
+#box()[
+  ```c
+  void create_named_pipe_reader(void) {
+    const char* name = "named_pipe";
 
-  const mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 644
-  if(mkfifo(name, permission) != 0) return EXIT_FAILURE;
+    const mode_t permission = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 644
+    if(mkfifo(name, permission) != 0) return EXIT_FAILURE;
 
-  const int fd = open(name, O_RDONLY);
-  if(fd < 0) return EXIT_FAILURE;
+    const int fd = open(name, O_RDONLY);
+    if(fd < 0) return EXIT_FAILURE;
 
-  char buf;
-  while(read(fd, &buf, 1) > 0) {
-    write(STDOUT_FILENO, &buf, 1);
+    char buf;
+    while(read(fd, &buf, 1) > 0) {
+      write(STDOUT_FILENO, &buf, 1);
+    }
+    write(STDOUT_FILENO, "\n", 1);
+
+    close(fd);
+    unlink(name);
   }
-  write(STDOUT_FILENO, "\n", 1);
 
-  close(fd);
-  unlink(name);
-}
+  void create_named_pipe_writer(void) {
+    const char* name ="named_pipe";
+    const int fd = open(name, O_WRONLY);
+    if(fd < 0) return EXIT_FAILURE;
 
-void create_named_pipe_writer(void) {
-  const char* name ="named_pipe";
-  const int fd = open(name, O_WRONLY);
-  if(fd < 0) return EXIT_FAILURE;
+    const char* msg = "Hello World";
+    write(fd, msg, strlen(msg));
 
-  const char* msg = "Hello World";
-  write(fd, msg, strlen(msg));
-
-  close(fd);
-}
-```
+    close(fd);
+  }
+  ```]
 
 == Messagequeue
 Messageueues ermöglichen im Vergleich zu Pipes das Senden und Empfangen von
@@ -800,61 +810,62 @@ Empfängt eine Nachricht aus der Messagequeue. Die Daten werden in msq_ptr mit
 der Länge msq_size gespeichert. msg_prio ist die Priorität der empfangenen
 Message.
 
-```c
-struct message {
-  char data[32];
-  bool quit;
-};
-typedef struct message message;
+#box()[
+  ```c
+  struct message {
+    char data[32];
+    bool quit;
+  };
+  typedef struct message message;
 
-bool create_message_queue(const char* name) {
-  const int oflag = O_CREAT | O_EXCL;
-  const mode_t permissions = S_IRUSR | S_IWUSR; // 600
-  const struct mq_attr attr = { .mq_maxmsg = 2, .mq_msgsize = sizeof(message) };
-  const mqd_t mq = mq_open(name, oflag, permissions, &attr);
-  if(mq == -1) return false;
-  mq_close(mq);
-  return true;
-}
-
-void logging_server(char **msg_queue_name) {
-  const mqd_t mq = mq_open(msg_queue_name, O_RDONLY, 0, NULL);
-  for(int quit_requests = 0; quit_requests < 2;) {
-    usleep(100 * 1000); // Simulate logging being very slow
-    message msg = { 0 };
-    unsigned int priority = 0;
-    if(mq_receive(mq, (char*)&msg, sizeof(msg), &priority) == -1) return;
-
-    if(msg.quit) ++quit_requests;
-    else         printf("%02u: %s\n", priority, msg.data);
+  bool create_message_queue(const char* name) {
+    const int oflag = O_CREAT | O_EXCL;
+    const mode_t permissions = S_IRUSR | S_IWUSR; // 600
+    const struct mq_attr attr = { .mq_maxmsg = 2, .mq_msgsize = sizeof(message) };
+    const mqd_t mq = mq_open(name, oflag, permissions, &attr);
+    if(mq == -1) return false;
+    mq_close(mq);
+    return true;
   }
-  mq_close(mq);
-  mq_unlink(msg_queue_name);
-}
 
-void client(char **msg_queue_name, long priority) {
-  const mqd_t mq = mq_open(msg_queue_name, O_WRONLY, 0, NULL);
-  for(int i = 0; i < 10; ++i) {
-    message msg = { .quit = false };
-    sprintf(msg.data, "Hello World %d", i);
+  void logging_server(char **msg_queue_name) {
+    const mqd_t mq = mq_open(msg_queue_name, O_RDONLY, 0, NULL);
+    for(int quit_requests = 0; quit_requests < 2;) {
+      usleep(100 * 1000); // Simulate logging being very slow
+      message msg = { 0 };
+      unsigned int priority = 0;
+      if(mq_receive(mq, (char*)&msg, sizeof(msg), &priority) == -1) return;
+
+      if(msg.quit) ++quit_requests;
+      else         printf("%02u: %s\n", priority, msg.data);
+    }
+    mq_close(mq);
+    mq_unlink(msg_queue_name);
+  }
+
+  void client(char **msg_queue_name, long priority) {
+    const mqd_t mq = mq_open(msg_queue_name, O_WRONLY, 0, NULL);
+    for(int i = 0; i < 10; ++i) {
+      message msg = { .quit = false };
+      sprintf(msg.data, "Hello World %d", i);
+      if(mq_send(mq, (const char*)&msg, sizeof(msg), priority) != 0) return;
+    }
+    const message msg = { .quit = true };
     if(mq_send(mq, (const char*)&msg, sizeof(msg), priority) != 0) return;
+    mq_close(mq);
   }
-  const message msg = { .quit = true };
-  if(mq_send(mq, (const char*)&msg, sizeof(msg), priority) != 0) return;
-  mq_close(mq);
-}
 
-int main(void) {
-  pid_t cpid = fork();
-  if(cpid == 0) {
-    cpid = fork();
-    if(cpid == 0) client(msg_queue_name, 0);
-    else          client(msg_queue_name, 1);
-  } else {
-    logging_server(msg_queue_name);
+  int main(void) {
+    pid_t cpid = fork();
+    if(cpid == 0) {
+      cpid = fork();
+      if(cpid == 0) client(msg_queue_name, 0);
+      else          client(msg_queue_name, 1);
+    } else {
+      logging_server(msg_queue_name);
+    }
   }
-}
-```
+  ```]
 
 == Shared Memory
 - `int shm_open(const char *name, int oflag, mode_t mode);`
@@ -1020,37 +1031,39 @@ typedef struct shared_data shared_data;
 ```
 
 Dieses Konstrukt stehen dem Schreibenden *und* dem Lesenden Ende zur Verfügung.
-Der Server:
-```c
-/* shared memory creation and mapping, same as before */
-data->processed = true; // Indicate initialization is done
-while(!data->available); // Busy wait for data to become available
-// Process data
-for(size_t i = 0; i < data->cnt; ++i) {
-data->buf[i] = toupper((unsigned char)data->buf[i]);
-}
-// Signal data has been processed
-data->processed = true;
-munmap(data, sizeof(shared_data));
-close(fd);
-shm_unlink(shared_mem_name);
-```
+#box()[
+  Der Server:
+  ```c
+  /* shared memory creation and mapping, same as before */
+  data->processed = true; // Indicate initialization is done
+  while(!data->available); // Busy wait for data to become available
+  // Process data
+  for(size_t i = 0; i < data->cnt; ++i) {
+  data->buf[i] = toupper((unsigned char)data->buf[i]);
+  }
+  // Signal data has been processed
+  data->processed = true;
+  munmap(data, sizeof(shared_data));
+  close(fd);
+  shm_unlink(shared_mem_name);
+  ```]
 
-Der Client:
-```c
-/* shared memory creation and mapping, same as before */
-while(!data->processed); // Busy wait until shared memory has been initialized
-data->processed = false; // Reset flag
-// Write data
-data->cnt = strlen(message);
-memcpy(&data->buf, message, data->cnt);
-// Signal data has been written
-data->available = true;
-while(!data->processed); // Busy wait until data has been processed
-printf("%.*s\n", (int)data->cnt, data->buf);
-munmap(data, sizeof(shared_data));
-close(fd);
-```
+#box()[
+  Der Client:
+  ```c
+  /* shared memory creation and mapping, same as before */
+  while(!data->processed); // Busy wait until shared memory has been initialized
+  data->processed = false; // Reset flag
+  // Write data
+  data->cnt = strlen(message);
+  memcpy(&data->buf, message, data->cnt);
+  // Signal data has been written
+  data->available = true;
+  while(!data->processed); // Busy wait until data has been processed
+  printf("%.*s\n", (int)data->cnt, data->buf);
+  munmap(data, sizeof(shared_data));
+  close(fd);
+  ```]
 
 == Mutex
 Mutex (von #text("Mu", weight: 800)tual #text("Ex", weight: 800)clusion), auch
@@ -1117,39 +1130,40 @@ funktionsfähig und nicht möglich rein in C zu lösen, da der Compiler und die
 CPU heutzutage in der Lage sind Instruktionen umzustellen wenn der Code nicht
 synchronisiert ist. Dies verhindert das Benutzen des Dekker Algorithmus.
 
-*Dekker Algorithmus in Pesudocode:*
-```
-variables:
-  wants_to_enter: array of 2 booleans
-  turn: integer
-  wants_to_enter[0] ← false
-  wants_to_enter[1] ← false
-  turn ← 0 // or 1
-
-p0:
-  wants_to_enter[0] ← true
-  while wants_to_enter[1] {
+#box()[
+  *Dekker Algorithmus in Pesudocode:*
+  ```
+  variables:
+    wants_to_enter: array of 2 booleans
+    turn: integer
     wants_to_enter[0] ← false
-    while turn != 0 // busy wait
-    wants_to_enter[0] ← true
-  }
-  // critical section
-  turn ← 1
-  wants_to_enter[0] ← false
-  // remainder section
-
-p1:
-  wants_to_enter[1] ← true
-  while wants_to_enter[0] {
     wants_to_enter[1] ← false
-    while turn != 1 // busy wait
+    turn ← 0 // or 1
+
+  p0:
+    wants_to_enter[0] ← true
+    while wants_to_enter[1] {
+      wants_to_enter[0] ← false
+      while turn != 0 // busy wait
+      wants_to_enter[0] ← true
+    }
+    // critical section
+    turn ← 1
+    wants_to_enter[0] ← false
+    // remainder section
+
+  p1:
     wants_to_enter[1] ← true
-  }
-  // critical section
-  turn ← 0
-  wants_to_enter[1] ← false
-  // remainder section
-```
+    while wants_to_enter[0] {
+      wants_to_enter[1] ← false
+      while turn != 1 // busy wait
+      wants_to_enter[1] ← true
+    }
+    // critical section
+    turn ← 0
+    wants_to_enter[1] ← false
+    // remainder section
+  ```]
 
 == Peterson's Algorithmus
 _(1981)_
@@ -1159,30 +1173,31 @@ für das Mutex Problem. Der Peterson's Algorithmus wird als besser angesehen, da
 er einfacher zu implementieren ist, weniger Anweisungen und eine klarere Logik
 besitzt und besser für formale Beweise geeignet ist.
 
-*Peterson's Algorithmus in Pseudocode:*
-```
-variables:
-  flag: array of 2 booleans
-  turn: integer
-  flag[0] ← false
-  flag[1] ← false
+#box()[
+  *Peterson's Algorithmus in Pseudocode:*
+  ```
+  variables:
+    flag: array of 2 booleans
+    turn: integer
+    flag[0] ← false
+    flag[1] ← false
 
-p0:
-  flag[0] ← true
-  turn ← 1
-  while (flag[1] && turn == 1)
-  // critical section
-  flag[0] ← false
-  // remainder section
+  p0:
+    flag[0] ← true
+    turn ← 1
+    while (flag[1] && turn == 1)
+    // critical section
+    flag[0] ← false
+    // remainder section
 
-p1:
-  flag[1] ← true
-  turn ← 0
-  while (flag[0] && turn == 0)
-  // critical section
-  flag[1] ← false
-  // remainder section
-```
+  p1:
+    flag[1] ← true
+    turn ← 0
+    while (flag[0] && turn == 0)
+    // critical section
+    flag[1] ← false
+    // remainder section
+  ```]
 
 Wie auch bereits beim Dekker Algorithmus angesprochen ist das benutzen dieses
 Algorithmus heutzutage nicht mehr möglich, wegen Compiler und CPU Instruction
@@ -1225,39 +1240,40 @@ Freigabe des jeweilig anderen Mutex wartet, diese aber erst freigegeben
 werden, wenn einer der beiden Mutexes freigegeben wird. Dies ist in sich ein
 Widerspruch und somit unmöglich.
 
-*Beispiel in C:*
-#grid(
-  columns: (50%, 50%),
-  gutter: 1em,
-  [
-    p0:
-    ```c
-    for(int i = 0; i < ITERATIONS; ++i) {
-      pthread_mutex_lock(&mutexes[0]);
-      // hält hier
-      // nächstes locking unmöglich
-      pthread_mutex_lock(&mutexes[1]);
+#box()[
+  *Beispiel in C:*
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    [
+      p0:
+      ```c
+      for(int i = 0; i < ITERATIONS; ++i) {
+        pthread_mutex_lock(&mutexes[0]);
+        // hält hier
+        // nächstes locking unmöglich
+        pthread_mutex_lock(&mutexes[1]);
 
-      pthread_mutex_unlock(&mutexes[1]);
-      pthread_mutex_unlock(&mutexes[0]);
-    }
-    ```
-  ],
-  [
-    p1:
-    ```c
-    for(int i = 0; i < ITERATIONS; ++i) {
-      pthread_mutex_lock(&mutexes[1]);
-      // und hier (gleichzeitig)
-      // nächstes locking unmöglich
-      pthread_mutex_lock(&mutexes[0]);
+        pthread_mutex_unlock(&mutexes[1]);
+        pthread_mutex_unlock(&mutexes[0]);
+      }
+      ```
+    ],
+    [
+      p1:
+      ```c
+      for(int i = 0; i < ITERATIONS; ++i) {
+        pthread_mutex_lock(&mutexes[1]);
+        // und hier (gleichzeitig)
+        // nächstes locking unmöglich
+        pthread_mutex_lock(&mutexes[0]);
 
-      pthread_mutex_unlock(&mutexes[0]);
-      pthread_mutex_unlock(&mutexes[1]);
-    }
-    ```
-  ],
-)
+        pthread_mutex_unlock(&mutexes[0]);
+        pthread_mutex_unlock(&mutexes[1]);
+      }
+      ```
+    ],
+  )]
 
 Eine weitere Art von Deadlock ist das Zirkuläre Warten. Dies geschieht wenn
 eine begrenzte Anzahl an Threads auf das Lock des jeweilig nächsten wartet und
@@ -1299,38 +1315,40 @@ return finish[1] && ... && finish[n]
 $=> cal(O)(n^2 dot m)$
 
 *Ressourcesneeded Algorithm:*
-```
-Input:  n, m, avail[n][m], alloc[n][m], need[n][m], req[i] // resources need by Thread T[i]
-Output: True/False (safe or unsafe)
+#box()[
+  ```
+  Input:  n, m, avail[n][m], alloc[n][m], need[n][m], req[i] // resources need by Thread T[i]
+  Output: True/False (safe or unsafe)
 
-if req[i] <= need[i]
-  error: needs too many Ressources
+  if req[i] <= need[i]
+    error: needs too many Ressources
 
-if req[i] > avail:
-  wait(T[i])
-else:
-  avail = avail - req[i]
-  alloc[i] = alloc[i] + req[i]
-  need[i] = need[i] - req[i]
-  if !safe(n, m, avail, alloc, need):
-    avail = avail + req[i]
-    alloc[i] = alloc[i] - req[i]
-    need[i] = need[i] + req[i]
-```
+  if req[i] > avail:
+    wait(T[i])
+  else:
+    avail = avail - req[i]
+    alloc[i] = alloc[i] + req[i]
+    need[i] = need[i] - req[i]
+    if !safe(n, m, avail, alloc, need):
+      avail = avail + req[i]
+      alloc[i] = alloc[i] - req[i]
+      need[i] = need[i] + req[i]
+  ```]
 
 *Beispiel:*
-#grid(columns: (50%, 50%), 
+#grid(
+  columns: (50%, 50%),
   [
     - Sichere Threadreihenfolge:
     $
-    {T_1, T_3, T_4, T_2, T_0}
+      {T_1, T_3, T_4, T_2, T_0}
     $
     - $"Req"_1$ = (1, 0, 2) < (3, 3, 2) = Avail
       - Avail = (3, 3, 2) - (1, 0, 2) = (2, 3, 0)
       - $"Alloc"_1$ = (3, 0, 2), $"Need"_1$ = (0, 2, 0)
     - Sichere Threadreihenfolge:
     $
-    {T_1, T_3, T_4, T_0, T_2}
+      {T_1, T_3, T_4, T_0, T_2}
     $
     - $"Req"_4$ = (3, 3, 0) > (2, 3, 0) = Avail
       - Anforderung größer als Available
@@ -1338,7 +1356,7 @@ else:
       - $"Need"_0$ = (7, 1, 3), $"Alloc"_0$ = (0, 4, 0)
       - Unmöglich da unsicherer Zustand
   ],
-  figure(image("./images/sync-bankier_algorithm.png", width: 70%))
+  figure(image("./images/sync-bankier_algorithm.png", width: 70%)),
 )
 
 == Deadlock Detection
@@ -1347,40 +1365,43 @@ Resourcenzuteilungsgraph, einem Wartegraph und einem
 Zykluserkennungsalgorithmus.
 
 *Cycledetection Algorithm:*
-```
-Input:  n, m, avail[n][m], alloc[n][m], req[n][m]
-Output: True/False (safe or unsafe)
+#box()[
+  ```
+  Input:  n, m, avail[n][m], alloc[n][m], req[n][m]
+  Output: True/False (safe or unsafe)
 
-finish[i] = alloc[i] != 0 ? False : True; i = {1..n}
+  finish[i] = alloc[i] != 0 ? False : True; i = {1..n}
 
-i = 0
-while i <= n && finish[i] = False && req[i] <= avail
-  finish[i] = True
-  avail = avail + alloc[i]
+  i = 0
+  while i <= n && finish[i] = False && req[i] <= avail
+    finish[i] = True
+    avail = avail + alloc[i]
 
-return finish[1] && ... && finish[n]
-```
-$=> cal(O)(n^2 dot m)$
+  return finish[1] && ... && finish[n]
+  ```
+  $=> cal(O)(n^2 dot m)$
+]
 
 *Beispiel:*
-#grid(columns: (50%, 50%), 
+#grid(
+  columns: (50%, 50%),
   [
     #v(0.5cm)
     - Sicherer Zustand: #h(4cm) $=>$
       - Kein Deadlock
     $
-    {T_0, T_2, T_3, T_1, T_4}
+      {T_0, T_2, T_3, T_1, T_4}
     $
     #v(4cm)
     - Unsicherer Zustand: #h(3.5cm) $=>$
       - Deadlock
     $
-    {T_0, ...}
+      {T_0, ...}
     $
-    
-    
+
+
   ],
-  figure(image("./images/sync-deadlock_detection.png", width: 70%))
+  figure(image("./images/sync-deadlock_detection.png", width: 70%)),
 )
 
 == Deadlock Behebung
@@ -1388,11 +1409,11 @@ Um einen Deadlock zu beheben können entweder alle Threads die in dem Deadlock
 gefangen sind gleichzeitig oder nacheinander terminiert werden. Beim
 sequenziellen Terminieren wird nach jeder Terminierung überprüft ob das System
 nun Deadlock frei ist. Die Reihenfolge der Terminierung kann von
-Threadpriorität, Berechnungszeit und weiteren Faktoren abhängen. 
+Threadpriorität, Berechnungszeit und weiteren Faktoren abhängen.
 
 Eine weitere Möglichkeit ist die Präemption von Ressourcen. Hierbei werden
 Ressourcen die in einem Deadlock gefangen sind Ressourcen entzogen, bzw.
-einzelne Threads gezielt terminiert. 
+einzelne Threads gezielt terminiert.
 
 Außerdem können Threads auf einen früheren Zustand zurückgesetzt bzw. neu
 gestartet werden.
@@ -1472,36 +1493,38 @@ folgt dies keiner spezifizierten Reihenfolge und die Threads verlassen
 nacheinander den Aufruf.
 
 *Beispiel:* \
-*client:*
-```c
-pthread_mutex_lock(&data->mtx);               // Aquire mutex
-data->cnt = strlen(message);                  // Write
-memcpy(&data->buf, message, data->cnt);       // message
-data->available = true;                       // Set condition
-pthread_mutex_unlock(&data->mtx);             // Release mutex
-pthread_cond_signal(&data->cond);             // Signal condition variable
+#box()[
+  *client:*
+  ```c
+  pthread_mutex_lock(&data->mtx);               // Aquire mutex
+  data->cnt = strlen(message);                  // Write
+  memcpy(&data->buf, message, data->cnt);       // message
+  data->available = true;                       // Set condition
+  pthread_mutex_unlock(&data->mtx);             // Release mutex
+  pthread_cond_signal(&data->cond);             // Signal condition variable
 
-pthread_mutex_lock(&data->mtx);               // Aquire mutex
-while(!data->processed) {                     // Wait until condition
-pthread_cond_wait(&data->cond, &data->mtx);   // Release mutex and wait
-}                                             // Mutex will be re-aquired
-printf("%.*s\n", (int)data->cnt, data->buf);  // Print
-pthread_mutex_unlock(&data->mtx);             // Release mutex
-```
+  pthread_mutex_lock(&data->mtx);               // Aquire mutex
+  while(!data->processed) {                     // Wait until condition
+  pthread_cond_wait(&data->cond, &data->mtx);   // Release mutex and wait
+  }                                             // Mutex will be re-aquired
+  printf("%.*s\n", (int)data->cnt, data->buf);  // Print
+  pthread_mutex_unlock(&data->mtx);             // Release mutex
+  ```]
 
-*server:*
-```c
-pthread_mutex_lock(&data->mtx);                       // Aquire mutex
-while(!data->available) {                             // Wait until condition
-pthread_cond_wait(&data->cond, &data->mtx);           // Release mutex and wait
-}                                                     // Mutex will be re-aquired
-for(size_t i = 0; i < data->cnt; ++i) {               // Process
-data->buf[i] = toupper((unsigned char)data->buf[i]);  // the
-}                                                     // data
-data->processed = true;                               // Set condition
-pthread_mutex_unlock(&data->mtx);                     // Release mutex
-pthread_cond_signal(&data->cond);                     // Signal condition variable
-```
+#box()[
+  *server:*
+  ```c
+  pthread_mutex_lock(&data->mtx);                       // Aquire mutex
+  while(!data->available) {                             // Wait until condition
+  pthread_cond_wait(&data->cond, &data->mtx);           // Release mutex and wait
+  }                                                     // Mutex will be re-aquired
+  for(size_t i = 0; i < data->cnt; ++i) {               // Process
+  data->buf[i] = toupper((unsigned char)data->buf[i]);  // the
+  }                                                     // data
+  data->processed = true;                               // Set condition
+  pthread_mutex_unlock(&data->mtx);                     // Release mutex
+  pthread_cond_signal(&data->cond);                     // Signal condition variable
+  ```]
 
 == Semaphores <semaphores>
 Semaphores sind ähnlich zu Mutexes. Semaphoren sind im gröbsten Sinne ein
@@ -1544,42 +1567,43 @@ definiert wäre.
 
 #figure(image("./images/sync-ring_buffer.png", width: 50%))
 
-```c
-struct RingBuffer {
-  int head;
-  int tail;
-  Data data[BUFFER_SIZE];
-};
-typedef struct RingBuffer RingBuffer;
+#box()[
+  ```c
+  struct RingBuffer {
+    int head;
+    int tail;
+    Data data[BUFFER_SIZE];
+  };
+  typedef struct RingBuffer RingBuffer;
 
-void ring_buffer_init(RingBuffer* buf) {
-  buf->head = 0;
-  buf->tail = 0;
-}
+  void ring_buffer_init(RingBuffer* buf) {
+    buf->head = 0;
+    buf->tail = 0;
+  }
 
-bool ring_buffer_is_full(RingBuffer* buf) {
-  return ((buf->head + 1) % BUFFER_SIZE) == buf->tail;
-}
+  bool ring_buffer_is_full(RingBuffer* buf) {
+    return ((buf->head + 1) % BUFFER_SIZE) == buf->tail;
+  }
 
-bool ring_buffer_is_empty(RingBuffer* buf) {
-  return buf->head == buf->tail;
-}
+  bool ring_buffer_is_empty(RingBuffer* buf) {
+    return buf->head == buf->tail;
+  }
 
-bool ring_buffer_push(RingBuffer* buf, const Data* data) {
-  if(ring_buffer_is_full(buf)) return false;
-  buf->data[buf->head] = *data;
-  buf->head = (buf->head + 1) % BUFFER_SIZE;
-  return true;
-}
-
-bool ring_buffer_pop(RingBuffer* buf, Data* data) {
-  if(ring_buffer_is_empty(buf)) return false;
-    *data = buf->data[buf->tail];
-    buf->tail = (buf->tail + 1) % BUFFER_SIZE;
+  bool ring_buffer_push(RingBuffer* buf, const Data* data) {
+    if(ring_buffer_is_full(buf)) return false;
+    buf->data[buf->head] = *data;
+    buf->head = (buf->head + 1) % BUFFER_SIZE;
     return true;
   }
-}
-```
+
+  bool ring_buffer_pop(RingBuffer* buf, Data* data) {
+    if(ring_buffer_is_empty(buf)) return false;
+      *data = buf->data[buf->tail];
+      buf->tail = (buf->tail + 1) % BUFFER_SIZE;
+      return true;
+    }
+  }
+  ```]
 
 == Producer - Consumer Problem
 #figure(image("./images/sync-producer_consumer.png", width: 80%))
@@ -1683,21 +1707,22 @@ bis alle Threads an der Barriere angekommen sind. Ein unspezifizierte Thread
 gibt den Wert `PTHREAD_BARRIER_SERIAL_THREAD` zurück. Dies kann benutzt werden
 um bestimmte Logik pro Barrier auszuführen bzw. pro Loop/Step.
 
-*Beispiel:*
-```c
-void* thread(void* arg) {
-  ThreadData* thread_data = arg;
-  SharedData* data = thread_data->data;
-  for(int t = 0; t < NUM_TIMESTEPS; ++t) {
-    compute(thread_data);
-    if(pthread_barrier_wait(&data->barrier) == PTHREAD_BARRIER_SERIAL_THREAD) {
-      swap_buffers(data);
+#box()[
+  *Beispiel:*
+  ```c
+  void* thread(void* arg) {
+    ThreadData* thread_data = arg;
+    SharedData* data = thread_data->data;
+    for(int t = 0; t < NUM_TIMESTEPS; ++t) {
+      compute(thread_data);
+      if(pthread_barrier_wait(&data->barrier) == PTHREAD_BARRIER_SERIAL_THREAD) {
+        swap_buffers(data);
+      }
+      pthread_barrier_wait(&data->barrier);
     }
-    pthread_barrier_wait(&data->barrier);
+    return NULL;
   }
-  return NULL;
-}
-```
+  ```]
 
 == Interrupt-based Synchronisation
 Generelles Vorgehen:
@@ -1720,82 +1745,89 @@ Auf Multi-Core-Systemen verwenden wir Hardwareanweisungen, wie:
 und atomare Variablen und Funktionen. Somit haben wir eine Synchronisation
 durch die Hardware.
 
-- *test_and_set*
-```c
-atomic_bool test_and_set(atomic_bool *lock) {
-  atomic_bool old = *lock;
-  *lock = true;
-  return old
-}
-```
-Beispielnutzung:
-```c
-atomic_bool lock = false;
+#box()[
+  - *test_and_set*
+  ```c
+  atomic_bool test_and_set(atomic_bool *lock) {
+    atomic_bool old = *lock;
+    *lock = true;
+    return old
+  }
+  ```]
 
-do {
-  // spinlock / busy waiting
-  while (test_and_set(&lock));
+#box()[
+  Beispielnutzung:
+  ```c
+  atomic_bool lock = false;
 
-  // critical section
+  do {
+    // spinlock / busy waiting
+    while (test_and_set(&lock));
 
-  lock = false;
-  // remainder section
+    // critical section
 
-} while (true)
-```
+    lock = false;
+    // remainder section
 
-- *compare_and_swap*
-```c
-atomic_int compare_and_swap(atomic_int *val,
-                            int expected, int new_val) {
-  temp = *val;
-  if(*val == expected)
-  *val = new_val;
-  return temp;
-}
-```
-Beispielnutzung:
-```c
-atomic_int lock = 0;
+  } while (true)
+  ```]
 
-do {
-  // spinlock / busy waiting
-  while (compare_and_swap(&lock), 0, 1) == 1;
+#box()[
+  - *compare_and_swap*
+  ```c
+  atomic_int compare_and_swap(atomic_int *val,
+                              int expected, int new_val) {
+    temp = *val;
+    if(*val == expected)
+    *val = new_val;
+    return temp;
+  }
+  ```]
 
-  // critical section
+#box()[
+  Beispielnutzung:
+  ```c
+  atomic_int lock = 0;
 
-  lock = 0;
-  // remainder section
+  do {
+    // spinlock / busy waiting
+    while (compare_and_swap(&lock), 0, 1) == 1;
 
-} while (true)
-```
+    // critical section
 
-- *begrenztes warten mit compare_and_swap*
-```c
-atomic_bool wait[N] = { false };
-atomic_int lock = 0;
+    lock = 0;
+    // remainder section
 
-// Prozess i
-do {
-  wait[i] = true; // wait[i] = true; Prozess i wartet auf
-                  // kritischen Bereich
+  } while (true)
+  ```]
 
-  // spinlock / busy waiting
-  while (wait[i] && compare_and_swap(&lock), 0, 1) == 1;
-  wait[i] = false;
+#box()[
+  - *begrenztes warten mit compare_and_swap*
+  ```c
+  atomic_bool wait[N] = { false };
+  atomic_int lock = 0;
 
-  // critical section
+  // Prozess i
+  do {
+    wait[i] = true; // wait[i] = true; Prozess i wartet auf
+                    // kritischen Bereich
 
-  j = (i + 1) % N;
-  while((j != i) && !wait[j])
-    j = (j + 1) % N;
+    // spinlock / busy waiting
+    while (wait[i] && compare_and_swap(&lock), 0, 1) == 1;
+    wait[i] = false;
 
-  if(j == i) lock = 0;  // release
-  else wait[j] = false; // transfer lock
-  // remainder section
+    // critical section
 
-} while (true)
-```
+    j = (i + 1) % N;
+    while((j != i) && !wait[j])
+      j = (j + 1) % N;
+
+    if(j == i) lock = 0;  // release
+    else wait[j] = false; // transfer lock
+    // remainder section
+
+  } while (true)
+  ```]
 
 == Spinlock / Busy waiting
 Bei einem Spinlock oder auch busy waiting wartet ein Prozess darauf, dass eine
@@ -1834,62 +1866,66 @@ signal(sem)
 ```
 
 === Implementierung ohne Spinlock:
-mittels Semaphore Warteschlange:
-```c
-typedef struct _process {
-  // true == busy
-  bool locked;
-  _process *next;
-} Process;
+#box()[
+  mittels Semaphore Warteschlange:
+  ```c
+  typedef struct _process {
+    // true == busy
+    bool locked;
+    _process *next;
+  } Process;
 
-typedef struct {
-  int value;
-  struct Process *list;
-} Semaphore;
+  typedef struct {
+    int value;
+    struct Process *list;
+  } Semaphore;
 
-// last process in the queue
-Process *last = NULL;
-```
+  // last process in the queue
+  Process *last = NULL;
+  ```]
 
-- *lock*
-```c
-lock(Process *l, Process *p) {            // last process
-  p−>next = NULL;                         // p
-  Prozess pred = fetch_and_store(l, p);   // p: new tail: pred = l; l = p;
-  if(pred != NULL) {                      // Locked; List not empty
-    p−>locked = true;                     // Locked by pred
-    pred−>next = p;                       // insert p
-    sleep();                              // wait on pred
+#box()[
+  - *lock*
+  ```c
+  lock(Process *l, Process *p) {            // last process
+    p−>next = NULL;                         // p
+    Prozess pred = fetch_and_store(l, p);   // p: new tail: pred = l; l = p;
+    if(pred != NULL) {                      // Locked; List not empty
+      p−>locked = true;                     // Locked by pred
+      pred−>next = p;                       // insert p
+      sleep();                              // wait on pred
+    }
   }
-}
-```
+  ```]
 
-- *unlock*
-```c
-unlock(Process *l, Process *p) {
-  if(p−>next == NULL) {               // no successor in the list
-    if(compare_and_swap(l, p, NULL))  // if (l == p) l = NULL
-      return;
-    while(p−>next == NULL);           // wait in succ
+#box()[
+  - *unlock*
+  ```c
+  unlock(Process *l, Process *p) {
+    if(p−>next == NULL) {               // no successor in the list
+      if(compare_and_swap(l, p, NULL))  // if (l == p) l = NULL
+        return;
+      while(p−>next == NULL);           // wait in succ
+    }
+    p−>next−>locked = false;            // unlock succ
+    wakeup(p->next);
   }
-  p−>next−>locked = false;            // unlock succ
-  wakeup(p->next);
-}
-```
+  ```]
 
-- *process p*
-```c
-void wait(Semaphore *sem) {
-  sem->value--;
-  if(sem->value < 0)
-    lock(last, p);
-}
-void signal(Semaphore *sem) {
-  sem->value++;
-  if(sem->value <= 0)
-    unlock(last, p);
-}
-```
+#box()[
+  - *process p*
+  ```c
+  void wait(Semaphore *sem) {
+    sem->value--;
+    if(sem->value < 0)
+      lock(last, p);
+  }
+  void signal(Semaphore *sem) {
+    sem->value++;
+    if(sem->value <= 0)
+      unlock(last, p);
+  }
+  ```]
 
 Falls jemand das hier nicht versteht, würde ich gerne auf die Folien von Herr
 Radush verweisen, mit denen ich genau so viel wie hier steht verstanden habe.
@@ -1900,7 +1936,7 @@ Ein Monitor ist ein ADT der Daten und vordefinierte Funktionen bereitstellt.
 Diese Funktionen sind mutual exclusive. Die Daten auf die Zugegriffen werden
 kann sind nur lokal vorhanden und somit parallel zugreifbar. Der Monitor stellt
 sicher das zu jedem Zeitpunkt maximal ein Prozess aktiv die Daten des Monitors
-manipuliert. 
+manipuliert.
 
 Um dies zu ermöglichen wird ein weiteres Konstruct, die Condition benötigt. Die
 einzigen 2 Operation auf den Conditions sind signal() und wait(), wobei wait
@@ -1910,168 +1946,175 @@ Bedingtes Warten.
 Die Conditions werden beim schlafen bzw. warten auf Ausführung in einer Queue
 gespeichert.
 
-#grid(columns: (50%, 50%), 
-  figure(image("./images/sync-monitor.png", width: 75%)),
-  figure(image("./images/sync-monitor_queue.png", width: 100%))
+#grid(
+  columns: (50%, 50%),
+  figure(image("./images/sync-monitor.png", width: 75%)), figure(image("./images/sync-monitor_queue.png", width: 100%)),
 )
 
-*Beispiel (Serial):*
-#grid(columns: (50%, 50%), 
-```Java
-monitor Serial {
-  condition x = 0;
-  bool done = false;
-  void f1() {
-    Anweisung s1;
-    done = true;
-    x.signal();
-  }
+#box()[
+  *Beispiel (Serial):*
+  #grid(
+    columns: (50%, 50%),
+    ```Java
+    monitor Serial {
+      condition x = 0;
+      bool done = false;
+      void f1() {
+        Anweisung s1;
+        done = true;
+        x.signal();
+      }
 
-  void f2() {
-    if(done == false)
-    x.wait();
-    Anweisung s2;
-  }
-}
-```,
-[
-  Prozess $P_1$:
-  ```Java
-  Serial s1;
-  s1.f1();
-  ```
-  Prozess $P_2$:
-  ```Java
-  Serial s2;
-  s2.f2();
-  ```
-]
-)
-
-*Implementierung mit Semaphoren:*
-#grid(columns: (50%, 50%), 
-```Java
-monitor ParallelSem {
-  semaphore mutex = 1; // Monitor lock
-  semaphore next = 0;  // Lock of Conditions
-  int next_count = 0;  // Count Conditions
-
-  Function f() {
-    // calculation
-    if (next_count > 0)
-      signal(next);
-    else
-      signal(mutex);
-  }
-}
-```,
-```Java
-condition X {
-  smaphore x_sem = 0;
-  int x_count = 0;
-
-  x.wait() {
-    x_count++;
-    if(next_count > 0)
-      signal(next);
-    else 
-      signal(mutex);
-
-    wait(x_sem);
-    x_count--;
-  }
-
-  x.signal() {
-    if(x_count > 0) {
-      next_count++;
-      signal(x_sem);
-      wait(next);
-      next_count--;
+      void f2() {
+        if(done == false)
+        x.wait();
+        Anweisung s2;
+      }
     }
-  }
-}
-```
-)
+    ```,
+    [
+      Prozess $P_1$:
+      ```Java
+      Serial s1;
+      s1.f1();
+      ```
+      Prozess $P_2$:
+      ```Java
+      Serial s2;
+      s2.f2();
+      ```
+    ],
+  )]
 
-*Ressourcenzuteilung:*
+#box()[
+  *Implementierung mit Semaphoren:*
+  #grid(
+    columns: (50%, 50%),
+    ```Java
+    monitor ParallelSem {
+      semaphore mutex = 1; // Monitor lock
+      semaphore next = 0;  // Lock of Conditions
+      int next_count = 0;  // Count Conditions
 
-#grid(columns: (50%, 50%), 
-```Java
-monitor ResourceAllocator {
-  boolean busy = false;
-  condition x;
-
-  void acquire(int time) {
-    if(busy)
-    x.wait(time);
-    busy = true;
-  }
-
-  void release() {
-    busy = false;
-    x.signal();
-  }
-}
-```,
-```Java
-ResourceAllocator R;
-Time t;
-
-R.acquire(t);
-
-// acquire Ressources
-
-
-R.release();
-```
-)
-
-*Dining Philosophers Monitor basiert:*
-#grid(columns: (50%, 50%), 
-```Java
-monitor DiningPhilosophers {
-  enum { THINKING, HUNGRY, EATING } state[N];
-  condition self[N];
-
-  int left(int i) {
-    return (i + N – 1) % N;
-  }
-
-  int right(int i) {
-    return (i + 1) % N;
-  }
-
-  void test_and_eat(int i) {
-    if(state[i] == HUNGRY && 
-      state[left(i) != EATING && 
-      state[right(i)] != EATING) {
-
-      state[i] = EATING;
-      self[i].signal();
+      Function f() {
+        // calculation
+        if (next_count > 0)
+          signal(next);
+        else
+          signal(mutex);
+      }
     }
-  }
-```,
-```Java
-  initialization() {
-    for(int i = 0; i < N; i++)
-      state[i] = THINKING;
-  }
+    ```,
+    ```Java
+    condition X {
+      smaphore x_sem = 0;
+      int x_count = 0;
 
-  void pickup(int i) {
-    state[i] = HUNGRY;
-    test_and_eat(i);
-    if(state[i] != EATING)
-    self[i].wait();
-  }
+      x.wait() {
+        x_count++;
+        if(next_count > 0)
+          signal(next);
+        else
+          signal(mutex);
 
-  void putdown(int i) {
-    state[i] = THINKING;
-    test_and_eat(left(i));
-    test_and_eat(right(i));
-  }
-}
-```
-)
+        wait(x_sem);
+        x_count--;
+      }
+
+      x.signal() {
+        if(x_count > 0) {
+          next_count++;
+          signal(x_sem);
+          wait(next);
+          next_count--;
+        }
+      }
+    }
+    ```,
+  )]
+
+#box()[
+  *Ressourcenzuteilung:*
+  #grid(
+    columns: (50%, 50%),
+    ```Java
+    monitor ResourceAllocator {
+      boolean busy = false;
+      condition x;
+
+      void acquire(int time) {
+        if(busy)
+        x.wait(time);
+        busy = true;
+      }
+
+      void release() {
+        busy = false;
+        x.signal();
+      }
+    }
+    ```,
+    ```Java
+    ResourceAllocator R;
+    Time t;
+
+    R.acquire(t);
+
+    // acquire Ressources
+
+
+    R.release();
+    ```,
+  )]
+
+#box()[
+  *Dining Philosophers Monitor basiert:*
+  #grid(
+    columns: (50%, 50%),
+    ```Java
+    monitor DiningPhilosophers {
+      enum { THINKING, HUNGRY, EATING } state[N];
+      condition self[N];
+
+      int left(int i) {
+        return (i + N – 1) % N;
+      }
+
+      int right(int i) {
+        return (i + 1) % N;
+      }
+
+      void test_and_eat(int i) {
+        if(state[i] == HUNGRY &&
+          state[left(i) != EATING &&
+          state[right(i)] != EATING) {
+
+          state[i] = EATING;
+          self[i].signal();
+        }
+      }
+    ```,
+    ```Java
+      initialization() {
+        for(int i = 0; i < N; i++)
+          state[i] = THINKING;
+      }
+
+      void pickup(int i) {
+        state[i] = HUNGRY;
+        test_and_eat(i);
+        if(state[i] != EATING)
+        self[i].wait();
+      }
+
+      void putdown(int i) {
+        state[i] = THINKING;
+        test_and_eat(left(i));
+        test_and_eat(right(i));
+      }
+    }
+    ```,
+  )]
 Auch hier habe ich die Folien nicht richtig verstanden und eigentlich nur
 kopiert!
 
@@ -2107,7 +2150,7 @@ Da dies jedoch potentielle Deadlocks und andere Fehler mit sich bringt kann auf
 einen anderen Ansatz gesetzt werden.
 
 Wir erstellen ein neues Konstrukt `atomic{S}`, welches sicherstellt, dass
-Operationen auf S transaktionell stattfinden. 
+Operationen auf S transaktionell stattfinden.
 ```
 void update {
   atomic {
@@ -2163,14 +2206,15 @@ Bei _DMA_ schreibt/liest das Gerät automatisch in/aus den/dem RAM. Die CPU ist
 hier nur der Initiator und kann während dem Transfer andere Aufgaben erledigen.
 
 === Beispiel _Memory Mapped I/O_ an einem Arduino Uno ATmega328P:
-#grid(columns: (50%, 50%), 
+#grid(
+  columns: (50%, 50%),
   [
     CPU Register, die den Status der I/O pins beinhalten.
     8 GPIO (General purpose I/O) pins sind verbunden um einen *GPIO Port* zu
     bilden.
     #figure(image("./images/io-arduino_mem.png", width: 50%))
   ],
-  figure(image("./images/io-arduino.png", width: 90%))
+  figure(image("./images/io-arduino.png", width: 90%)),
 )
 
 Der Zugriff erfolgt wie auf normalen Speicher:
@@ -2194,18 +2238,19 @@ Alle Addressen starten bei `0x0000`. Der gewählte Addressraum wird durch eine
 Assembly Instruktion angegeben.
 
 === Beispiel _DMA-Buffer_:
-#grid(columns: (50%, 50%), 
+#grid(
+  columns: (50%, 50%),
   [
     Die CPU wird nur genutzt um den Transfer zu Initialisieren und beim Abschluss
     zu überprüfen. Der Transfer an sich ist unabhängig.
-    
+
     Damit dies möglich ist braucht es gewisse Buffer, damit die Initialisierten und
     in einer Queue wartenden Transfers direkt stattfinden können.
   ],
-  figure(image("./images/io-dma_buffer.png", width: 80%))
+  figure(image("./images/io-dma_buffer.png", width: 80%)),
 )
 
-Wir betrachten nun das Beispiel an einem NIC (Network Card Interface). 
+Wir betrachten nun das Beispiel an einem NIC (Network Card Interface).
 
 #figure(image("./images/io-nic.png", width: 80%))
 
@@ -2291,14 +2336,14 @@ RAID Level, die unterschiedliche Aspekte optimieren. Die Hardware Implmentation
 ist teuer, aber schnell, hat keinen CPU-Overhead, aber ist nicht portable, da
 RAID Kontroller von verschiedenen Herstellern verschieden funktionieren. Die
 Software Implementation ist kostenlos, auf modernen CPUs genau so schnell wie
-eine Hardware Implementation und portable. 
+eine Hardware Implementation und portable.
 
 *Die Benutzung von RAID ist nicht gleich einem BACKUP!*
 
 == RAID Standard Levels
 $
-N = \#"disks" \
-D = "disk size"
+  N = \#"disks" \
+  D = "disk size"
 $
 
 === RAID 0
@@ -2309,7 +2354,7 @@ zusammengefasst. Die Lese-/Schreibgeschwindigkeit verbessert sich.
 
 Nutzbarer Speicher:
 $
-N dot D
+  N dot D
 $
 
 === RAID 1
@@ -2320,7 +2365,7 @@ Lesegeschwindigkeit verbessert sich.
 
 Nutzbarer Speicher:
 $
-D
+  D
 $
 
 === RAID 2
@@ -2333,7 +2378,7 @@ in der Praxis so gut wie nie genutzt.
 
 Nutzbarer Speicher:
 $
-(N - 1) dot D
+  (N - 1) dot D
 $
 
 === RAID 3
@@ -2350,7 +2395,7 @@ Lesegeschwindigkeit. Wird in der Praxis selten genutzt.
 
 Nutzbarer Speicher:
 $
-(N - 1) dot D
+  (N - 1) dot D
 $
 
 === RAID 5
@@ -2370,17 +2415,19 @@ eines fehlerhaften Datenträgers.
 
 == RAID Hybrid Levels
 
-=== RAID 01 / RAID 10
-_(Combination of RAID 0 and 1)_
-#figure(image("./images/raid-raid_01.png", width: 50%))
-Es werden mindestens 4 Datenträger benötigt. Es handelt sich um eine
-Kombination von RAID 0 und RAID 1. _(Mirror of stripes)_ bzw. _(Stripe of
-mirrors)_.
+#box()[
+  === RAID 01 / RAID 10
+  _(Combination of RAID 0 and 1)_
+  #figure(image("./images/raid-raid_01.png", width: 50%))
+  Es werden mindestens 4 Datenträger benötigt. Es handelt sich um eine
+  Kombination von RAID 0 und RAID 1. _(Mirror of stripes)_ bzw. _(Stripe of
+  mirrors)_.
 
-Nutzbarer Speicher:
-$
-(N/2) dot D
-$
+  Nutzbarer Speicher:
+  $
+    (N / 2) dot D
+  $
+]
 
 === RAID 50
 _(Combination of RAID 5 and 0)_
@@ -2391,20 +2438,20 @@ Schreibgeschwindigkeit wird erhöht.
 
 Nutzbarer Speicher:
 $
-M = \#"RAID groups" \ \
-M dot (N / M - 1) dot D
+  M = \#"RAID groups" \ \
+  M dot (N / M - 1) dot D
 $
 
 = Filesystems und Partitioning
 Die Datenträger eines Geräts werden dem Betriebssystem als lineares Array an
 bytes übergeben. Um die einzelnen Daten des Systems zu speichern, wieder zu
 finden, und viele weitere Operationen auf ihnen auszuführen, wird ein
-Dateisystem genutzt. 
+Dateisystem genutzt.
 
 == Partitiontable
 Die Partitionstabelle befindet sich am Anfang des Datenträgers bzw. des
 Speicherarrays. Sie enthält die Position, den Typ, den Name, usw. von jeder
-Partition. 
+Partition.
 
 === MBR
 *MBR* (Master Boot Record) ist eine simple Partitionstabelle. Sie startet im
@@ -2415,9 +2462,10 @@ genutzt. Der heutige Standard ist *GPT*.
 
 === GPT
 *GPT* (GUID Partition Table) ist eine weitere Art der Partitionstabelle. Sie
-wird heutzutage hauptsächlich genutzt. 
+wird heutzutage hauptsächlich genutzt.
 
-#grid(columns: (60%, 40%), 
+#grid(
+  columns: (60%, 40%),
   [
     Im Bootsector wird zuerst ein Bereich von 512bytes freigehalten. Dies ist
     dazu da um Programme daran zu hindern die GPT Tabelle durch schreiben von
@@ -2428,17 +2476,17 @@ wird heutzutage hauptsächlich genutzt.
     Datenkorruption am Anfang des Datenträgers potenziell die Partitionen
     wieder herstellen kann.
   ],
-  figure(image("./images/fs-gpt.png", width: 60%))
+  figure(image("./images/fs-gpt.png", width: 60%)),
 )
 
 == FAT Filesystem
 *FAT* (File Allocation Table) ist ein simples und dementrspechend naives
 Dateisystem. Der Datenträger ist in gleich große Cluster unterteilt (meist
-16KiB). Eine  Datei wird durch eine linked-List von einem oder mehrere dieser
+16KiB). Eine Datei wird durch eine linked-List von einem oder mehrere dieser
 Cluster dargestellt. Eine Indexierungstabelle zu Beginn der Partition zeigt auf
 das Startcluster einer Datei. Folders sind spezielle Dateien die auf die
 Dateien/cluster in dem Folder zeigen. Das FAT Dateisystem schützt nicht gegen
-Datenkorruption und hat keinerlei error detection bzw. data recovery. 
+Datenkorruption und hat keinerlei error detection bzw. data recovery.
 
 FAT wird heutzutage noch in manchen Embedded Systems verwendet.
 
@@ -2447,12 +2495,12 @@ Journaling Dateisysteme wie NTFS oder ext4 werden heutzutage häufig verwendet.
 Sie schützen vor datacorruption. Das schreiben auf das Dateisystem ist jedoch
 nicht besonders schnell und benötigt mehrere Schritte. Fehler während des
 Schreibens sind somit gefährlich und können Daten bzw. im schlechtesten Fall
-Dateisystem Metadaten zerstören. 
+Dateisystem Metadaten zerstören.
 
 Wie das Wort Journaling schon vermuten lässt werden Änderungen an Dateien in
 einem _Journal_ gespeichert. Dies passiert als erstes bei einer
 Schreiboperation. Wenn nun ein Fehler aufgetreten ist können die Daten durch
-das Journal wieder ersetzt werden. 
+das Journal wieder ersetzt werden.
 
 Fehler im Journal werden durch das inkludieren der checksum in den Journal
 Einträgen verhindert.
@@ -2469,7 +2517,7 @@ Dateisystem gespeichert und durch Referenzen zugänglich gemacht.
 Das Scheduling bzw. die Prozessplangin wird bei der Multi-Core-Programmierung
 benötigt um eine maximale Prozessorauslastung zu erzielen. Während der
 Prozessausführung unerscheiden wir zwischen 2 Phasen, dem CPU-Burst und dem I/O
-Burst. 
+Burst.
 
 I/O bound processes sind demnach Programme die eine große Anzahl kurzer
 CPU-Bursts benötigen. CPU-bound processes haben eine kleine Anzahl an langen
@@ -2520,7 +2568,7 @@ die für das Starten und Stoppen bzw. den Contextswitch benötigt wird.
 Wir unterscheiden zwischen Präemptiv und Kooperativ. Wie bereits beim Kernel
 erklärt kann bei einem Kooperativen Kernel ein Prozess die CPU nur freiwillig
 verlassen. Bei einem Präemptiven Kernel kann das Betriebssystem entscheiden
-wann der Prozess die CPU verlässt. 
+wann der Prozess die CPU verlässt.
 
 Kooperative Betriebssysteme/Kernels sind extrem selten. Präemptive
 Betriebssysteme/Kernels sind zum Beispiel Linux, Windows und MacOS.
@@ -2531,13 +2579,13 @@ Bearbeitungszeit, die Wartezeit eines Prozesses bzw. die Antwortzeit eines
 Prozesses herangezogen werden.
 
 == CPU-Burst Prediction
+#figure(image("./images/sched-cpu_burst_prediction.png", width: 80%))
 Um die CPU-Burst Zeit vorherzusagen nutzen wir einen exponentielle Glättung.
 
-#figure(image("./images/sched-cpu_burst_prediction.png", width: 80%))
 
 Die Formel für die Vorhersage ist:
 $
-cal(tau)_(n+1) = cal(alpha) dot t_n + (1 - cal(alpha)) dot cal(tau)_n
+  cal(tau)_(n+1) = cal(alpha) dot t_n + (1 - cal(alpha)) dot cal(tau)_n
 $
 wobei:
 - $cal(tau)_(n+1)$: Vorhersage für den nächsten CPU-Burst
@@ -2553,127 +2601,131 @@ wobei:
 *Konstante $cal(tau)_0$:* ist der Gesamtsystemdurchschnitt
 
 
-== Scheduling Algorithmus - First come First server (FCFS)
-*Beispiele:*
+#box()[
+  == Scheduling Algorithmus - First come First server (FCFS)
+  *Beispiele:*
 
-$
-P_1: "Burst time": 24 \
-P_2: "Burst time": 3 \
-P_3: "Burst time": 3
-$\
+  $
+    P_1: "Burst time": 24 \
+    P_2: "Burst time": 3 \
+    P_3: "Burst time": 3
+  $\
 
-#grid(columns: (50%, 50%),
-  [
-    - Ankunftsreihenfolge:
-    $
-    P_1, P_2, P_3
-    $
-    
-    - Wartezeiten:
-    $
-    P_1: 0; P_2: 24; P_3: 27 \ \
-    emptyset = (0+24+27)/3 = 17
-    $
-  ],
-  [
-    - Ankunftsreihenfolge:
-    $
-    P_2, P_3, P_1
-    $
-    
-    - Wartezeiten:
-    $
-    P_2: 0; P_3: 3; P_1: 6 \ \
-    emptyset = (0+3+6)/3 = 3
-    $
-  ]
-)
+  #grid(
+    columns: (50%, 50%),
+    [
+      - Ankunftsreihenfolge:
+      $
+        P_1, P_2, P_3
+      $
+
+      - Wartezeiten:
+      $
+        P_1: 0; P_2: 24; P_3: 27 \ \
+        emptyset = (0+24+27) / 3 = 17
+      $
+    ],
+    [
+      - Ankunftsreihenfolge:
+      $
+        P_2, P_3, P_1
+      $
+
+      - Wartezeiten:
+      $
+        P_2: 0; P_3: 3; P_1: 6 \ \
+        emptyset = (0+3+6) / 3 = 3
+      $
+    ],
+  )]
 
 Hier findet sich ein Konvoi Effekt, spätere Prozesse müssen auf vorherige
 Prozesse warten. Egal ob diese wesentlich kürzer bzw. länger sind. Dieser
 Ansatz ist Kooperativ
 
-== Scheduling Algorithmus - Shortest process first
-Wenn wir nun alle ankommenden Prozesse aufsteigend nach ihrer geschätzten
-Burst-Zeit sortieren und in dieser Reihenfolge ausführen, bekommen wir eine
-minimale durchschnittliche Wartezeit. Auch dieser Ansatz ist Kooperativ.
+#box()[
+  == Scheduling Algorithmus - Shortest process first
+  Wenn wir nun alle ankommenden Prozesse aufsteigend nach ihrer geschätzten
+  Burst-Zeit sortieren und in dieser Reihenfolge ausführen, bekommen wir eine
+  minimale durchschnittliche Wartezeit. Auch dieser Ansatz ist Kooperativ.
 
-*Beispiel:*
-$
-P_1: "Burst time": 5 \
-P_2: "Burst time": 8 \
-P_3: "Burst time": 7 \
-P_4: "Burst time": 3 \
-$\
+  *Beispiel:*
+  $
+    P_1: "Burst time": 5 \
+    P_2: "Burst time": 8 \
+    P_3: "Burst time": 7 \
+    P_4: "Burst time": 3 \
+  $\
 
-- Reihenfolge:
-$P_4, P_1, P_3, P_2$
+  - Reihenfolge:
+  $P_4, P_1, P_3, P_2$
 
-- Wartezeiten:
-$P_4: 0, P_1: 3, P_3: 9, P_4: 16$ \ \
-$emptyset = (0+3+9+26)/4 = 7$
+  - Wartezeiten:
+  $P_4: 0, P_1: 3, P_3: 9, P_4: 16$ \ \
+  $emptyset = (0+3+9+26) / 4 = 7$
+]
 
-== Scheduling Algorithmus - Process with shortest remaining first
-Dies ist die Präemptive version des _Shortest process first_ Ansatzes. Die
-ankommenden Prozesse werden in eine Queue einsortiert und ausgeführt wenn die
-Burst-Zeit kürzer als die des geradigen Prozesses ist.
+#box()[
+  == Scheduling Algorithmus - Process with shortest remaining first
+  Dies ist die Präemptive version des _Shortest process first_ Ansatzes. Die
+  ankommenden Prozesse werden in eine Queue einsortiert und ausgeführt wenn die
+  Burst-Zeit kürzer als die des geradigen Prozesses ist.
 
-*Beispiel:*
-$
-P_1: "arrival": 0; "Burst time": 8 \
-P_2: "arrival": 1; "Burst time": 4 \
-P_3: "arrival": 2; "Burst time": 9 \
-P_4: "arrival": 3; "Burst time": 5 \
-$
+  *Beispiel:*
+  $
+    P_1: "arrival": 0; "Burst time": 8 \
+    P_2: "arrival": 1; "Burst time": 4 \
+    P_3: "arrival": 2; "Burst time": 9 \
+    P_4: "arrival": 3; "Burst time": 5 \
+  $
 
-- Ganttdiagramm (Wartezeiten):
-#figure(image("./images/sched-shortest_remaining.png", width: 70%))
+  - Ganttdiagramm (Wartezeiten):
+  #figure(image("./images/sched-shortest_remaining.png", width: 70%))
 
-- durchschnittliche Wartezeit:
-$
-((10-1) + (1-1) + (17-2) + (5-3))
-/
-4 = 6.5
-$
+  - durchschnittliche Wartezeit:
+  $
+    ((10-1) + (1-1) + (17-2) + (5-3)) / 4 = 6.5
+  $
+]
 
-== Scheduling Algorithmus - Round-Robin Präemptiv
-Der Round-Robin ist der Präemptive Version zu dem _First come First serve_
-Ansatz. Für diesen Ansatz definieren wir ein *CPU-Zeitquantum* $q$. Dieses
-Zeitquantum liegt normalerweise zwischen 10 bis 100 Millisekunden. Im Vergleich
-zu einem Contextswitch ist dies eine lange Zeit. Wir wählen $q$ so, dass $q >
-80%$ der CPU-Bursts. Die Prozesse werden, wie auch schon bei dem _FCFS_ Ansatz,
-in eine FIFO eingereiht und der Reihe nach abgearbeitet. Dabei darf jeder
-Prozess eine maximale Zeit von einem Zeitquantum $q$ auf der CPU arbeiten. Der
-Prozess gibt demnach die CPU frei wenn das Zeitquantum erschöpft bzw. der
-Prozess abgeschlossen ist.
+#box()[
+  == Scheduling Algorithmus - Round-Robin Präemptiv
+  Der Round-Robin ist der Präemptive Version zu dem _First come First serve_
+  Ansatz. Für diesen Ansatz definieren wir ein *CPU-Zeitquantum* $q$. Dieses
+  Zeitquantum liegt normalerweise zwischen 10 bis 100 Millisekunden. Im Vergleich
+  zu einem Contextswitch ist dies eine lange Zeit. Wir wählen $q$ so, dass $q >
+  80%$ der CPU-Bursts. Die Prozesse werden, wie auch schon bei dem _FCFS_ Ansatz,
+  in eine FIFO eingereiht und der Reihe nach abgearbeitet. Dabei darf jeder
+  Prozess eine maximale Zeit von einem Zeitquantum $q$ auf der CPU arbeiten. Der
+  Prozess gibt demnach die CPU frei wenn das Zeitquantum erschöpft bzw. der
+  Prozess abgeschlossen ist.
 
-#figure(image("./images/sched-round_robin.png", width: 80%))
+  #figure(image("./images/sched-round_robin.png", width: 80%))
 
-*Beispiele:*
-$
-P_1: "Burst time": 24 \
-P_2: "Burst time": 3 \
-P_3: "Burst time": 3 \
-$
+  *Beispiele:*
+  $
+    P_1: "Burst time": 24 \
+    P_2: "Burst time": 3 \
+    P_3: "Burst time": 3 \
+  $
 
-- *$q = 4$:*
-#figure(image("./images/sched-round_robin_q4.png", width: 80%))
+  - *$q = 4$:*
+  #figure(image("./images/sched-round_robin_q4.png", width: 80%))
 
-durschnittliche Wartezeit:
-$
-((10-4) + (4-0) + (7-0))
-/
-3 = 5.66
-$
+  durschnittliche Wartezeit:
+  $
+    ((10-4) + (4-0) + (7-0)) / 3 = 5.66
+  $
 
 
-- *$n = 3; "Burst time": 10$*
-  - *$q = 1$*
-  Laufzeit: $(28+29+30)/3 = 29$ \ \
-  Wartezeit: $(18+19+20)/3 = 19$ \ \
-  - *$q = 10$*
-  Laufzeit: $(10+20+30)/3 = 20$ \ \
-  Wartezeit: $(0+10+20)/3 = 10$
+  - *$n = 3; "Burst time": 10$*
+    - *$q = 1$*
+    Laufzeit: $(28+29+30) / 3 = 29$ \ \
+    Wartezeit: $(18+19+20) / 3 = 19$ \ \
+    - *$q = 10$*
+    Laufzeit: $(10+20+30) / 3 = 20$ \ \
+    Wartezeit: $(0+10+20) / 3 = 10$
+]
 
 == Scheduling Algorithmus - Prioritäts Planung
 Jder Prozess hat eine Priorität (z.b. von $[0, 4095]$). Ein kleinerer Wert bedeutet eine höherer Priorität. Der Prozess mit der höchsten Priorität wird der CPU zugewiesen. Das Prinzip funktioniert sowohl Präemptiv als auch Kooperativ. Da die Queue nach der Priorität sortiert wird kann es dazu kommen, dass manche Prozesse mit einer geringen Priorität nie ausgeführt werden. Dies kann behoben werden in dem die Priorität mit dem "Alter" des Prozesses zunimmt. Das Suchen des Prozesses mit der höchsten Priorität hat eine Laufzeit von $cal(O)(n)$.
@@ -2681,39 +2733,39 @@ Jder Prozess hat eine Priorität (z.b. von $[0, 4095]$). Ein kleinerer Wert bede
 *Beispiele:*
 - Kooperativ:
 $
-P_1: "Burst time": 10; "Priority": 3 \
-P_2: "Burst time": 1; "Priority": 1 \
-P_3: "Burst time": 2; "Priority": 4 \
-P_4: "Burst time": 1; "Priority": 5 \
-P_5: "Burst time": 5; "Priority": 2 \
+  P_1: "Burst time": 10; "Priority": 3 \
+  P_2: "Burst time": 1; "Priority": 1 \
+  P_3: "Burst time": 2; "Priority": 4 \
+  P_4: "Burst time": 1; "Priority": 5 \
+  P_5: "Burst time": 5; "Priority": 2 \
 $
 
 #figure(image("./images/sched-priority_cooperative.png", width: 80%))
 
 durschnittliche Wartezeit:
 $
-(0 + 1 + 6 + 16 + 18) / 5 = 18
+  (0 + 1 + 6 + 16 + 18) / 5 = 18
 $
 
 - Präemptiv:
 $
-P_1: "Burst time": 4; "Priority": 3 \
-P_2: "Burst time": 5; "Priority": 2 \
-P_3: "Burst time": 8; "Priority": 2 \
-P_4: "Burst time": 7; "Priority": 1 \
-P_5: "Burst time": 3; "Priority": 3 \
+  P_1: "Burst time": 4; "Priority": 3 \
+  P_2: "Burst time": 5; "Priority": 2 \
+  P_3: "Burst time": 8; "Priority": 2 \
+  P_4: "Burst time": 7; "Priority": 1 \
+  P_5: "Burst time": 3; "Priority": 3 \
 $
 
 #figure(image("./images/sched-priority_preemptive.png", width: 80%))
 
 durschnittliche Wartezeit:
 $
-( (20 + 24 - 22) + (7 + 11 - 9 + 15 - 13) + (9 + 13 - 11 + 16 - 15) + (22 + 26 - 24) )
-/5 = 13.8
+  ( (20 + 24 - 22) + (7 + 11 - 9 + 15 - 13) + (9 + 13 - 11 + 16 - 15) + (22 + 26 - 24) ) / 5 = 13.8
 $
 
 == Multilevel Queue Scheduling
-#grid(columns: (60%, 40%), 
+#grid(
+  columns: (60%, 40%),
   [
     Im Vergleich zum Priority Queue Ansatz wird hier jeder Priorität eine Queue
     zugeordnet. Das heißt alle Prozesse mit Priorität $k$ kommen in die Zugehörige
@@ -2725,11 +2777,13 @@ $
     Ansatz abgearbeitet. Die Hintergrund Prozesse haben eine geringere Priorität
     und werden in _FCFS_ abgearbeitet.
   ],
-  figure(image("./images/sched-seperate_priority.png", width: 80%))
+  figure(image("./images/sched-seperate_priority.png", width: 80%)),
 )
 #figure(image("./images/sched-seperate_priority2.png", width: 80%))
 
 == Multilevel Feedback Queue Scheduling
+#figure(image("./images/sched-multilevel_feedback.png", width: 80%))
+
 Ähnelt dem Multilevel Queue Scheduling stark. Hier ist es jedoch möglich, dass
 Prozesse von einer Prioritäts Queue in eine andere verschoben werden. Meist
 werden die Prozesse nach CPU-Burst Zeit und nach Zeit in der Queue in die
@@ -2739,7 +2793,6 @@ Prozesse werden herabgestuft, das Zeitquantum erschöpft wurde, und
 heraufgestuft wenn der Prozess bereits lange in der Queue auf Ausführung
 wartet.
 
-#figure(image("./images/sched-multilevel_feedback.png", width: 80%))
 
 = Thread Scheduling / Planung
 *Contention Conflict:*
@@ -2756,60 +2809,61 @@ ein eigener Kernel-Thread zugeordnet (One-to-One-Modell). Die Threads
 konkurrieren dabei systemweit um Rechenzeit. Dieses Modell ist die einzige
 Option unter Linux und macOS.
 
-*Beispiel:*
-```c
-#include <pthread.h>
-#include <stdio.h>
-#define NUM_THREADS 5
+#box()[
+  *Beispiel:*
+  ```c
+  #include <pthread.h>
+  #include <stdio.h>
+  #define NUM_THREADS 5
 
-// Each thread will begin control in this function
-void *runner(void *param) {
-  // do some work ...
-  pthread_exit(0);
-}
-
-int main(int argc, char *argv[]) {
-  int i, scope;
-  pthread_t tid[NUM_THREADS];
-  pthread_attr_t attr;
-
-  // get the default attributes
-  pthread_attr_init(&attr);
-
-  // first inquire on the current scope
-  if (pthread attr getscope(&attr, &scope) != 0) {
-    fprintf(stderr, "Unable to get scheduling scope∖n");
-  } else {
-    if (scope == PTHREAD_SCOPE_PROCESS)
-      printf("PTHREAD SCOPE PROCESS");
-    else if (scope == PTHREAD_SCOPE_SYSTEM)
-      printf("PTHREAD SCOPE SYSTEM");
-    else
-      fprintf(stderr, "Illegal scope value.∖n");
+  // Each thread will begin control in this function
+  void *runner(void *param) {
+    // do some work ...
+    pthread_exit(0);
   }
 
-  // set the scheduling algorithm to PCS or SCS
-  pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+  int main(int argc, char *argv[]) {
+    int i, scope;
+    pthread_t tid[NUM_THREADS];
+    pthread_attr_t attr;
 
-  // create the threads
-  for (i = 0; i < NUM_THREADS; i++)
-    pthread_create(&tid[i],&attr,runner,NULL);
+    // get the default attributes
+    pthread_attr_init(&attr);
 
-  // now join on each thread
-  for (i = 0; i < NUM_THREADS; i++)
-    pthread_join(tid[i], NULL);
-}
-```
+    // first inquire on the current scope
+    if (pthread attr getscope(&attr, &scope) != 0) {
+      fprintf(stderr, "Unable to get scheduling scope∖n");
+    } else {
+      if (scope == PTHREAD_SCOPE_PROCESS)
+        printf("PTHREAD SCOPE PROCESS");
+      else if (scope == PTHREAD_SCOPE_SYSTEM)
+        printf("PTHREAD SCOPE SYSTEM");
+      else
+        fprintf(stderr, "Illegal scope value.∖n");
+    }
+
+    // set the scheduling algorithm to PCS or SCS
+    pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
+
+    // create the threads
+    for (i = 0; i < NUM_THREADS; i++)
+      pthread_create(&tid[i],&attr,runner,NULL);
+
+    // now join on each thread
+    for (i = 0; i < NUM_THREADS; i++)
+      pthread_join(tid[i], NULL);
+  }
+  ```]
 
 = Multiprocessor Scheduling / Planung
 Wir untescheiden zwischen asymmetrischer und symmetrischer
 Multiprozessorplanung. Bei der Asymmetrischen Planung ist ein CPU Kern für die
 Planung zuständig. Bei der Synchronen Planung ist jeder CPU Kern für seine
-eigene Planung zuständig. 
+eigene Planung zuständig.
 
 Zudem Unterscheiden wir zwischen einer gemeinsamen und einer privaten
 Threadqueue. Auf die gemeinsame Queue wird von allen Threads zugegriffen. Bei
-der privaten Queue hat jeder Prozessor eine eigene Warteschlange. 
+der privaten Queue hat jeder Prozessor eine eigene Warteschlange.
 
 Beide Ansätze haben vor und Nachteile. Bei der gemeinsamen Queue kann es zu
 race conditions kommen, bzw. das synchronisieren zum Bottleneck werden. Die
@@ -2821,11 +2875,11 @@ erschwerten Lastausgleich.
 == Multicore Prozessoren
 Mehrere Hardware Threads pro CPU Kern. Da bei einem Speicheraufruf die CPU eine
 lange Wartezeit hat, wird versucht während dieses Speicheraufrufs einen anderen
-Thread auf der CPU laufen zu lassen. 
+Thread auf der CPU laufen zu lassen.
 
 $
-M: "Memory stall cycle" \
-C: "compute cycle"
+  M: "Memory stall cycle" \
+  C: "compute cycle"
 $
 
 #figure(image("/images/sched-mem_stall_prevention.png", width: 80%))
@@ -2841,7 +2895,7 @@ Wir unterscheiden zudem zwischen Coarsed- und Finegrained Multithreading. Bei
 Coarsedgrained Multithreading wird ein Thread solange ausgeführt bis ein lange
 Unterbrechung, wie eine Memory stall vorliegt. Dann findet ein großer
 Contextswitch statt, bei dem die gesamte Instruktions Pipeline geflushed werden
-muss. 
+muss.
 
 Auf Finegrained Systemen findet ein kleiner Contextswitch statt. Dieser ist
 Hardware unterstützt.
@@ -2879,7 +2933,7 @@ Ereignis-basierte Echtzeitsysteme verwenden Prioritäten und können laufende
 Aufgaben zugunsten wichtigerer unterbrechen. Weiche Echtzeitsysteme versuchen,
 Termine für kritische Aufgaben einzuhalten, geben aber keine absolute Garantie.
 Harte Echtzeitsysteme müssen Aufgaben strikt fristgerecht erledigen, ein
-Verpassen der Deadline ist nicht akzeptabel. 
+Verpassen der Deadline ist nicht akzeptabel.
 
 *Interrupt-Latency:*
 Unterbrechungsverzögerung ist die Zeitspanne zwischen dem Eintreffen einer
@@ -2894,9 +2948,10 @@ Konfliktphase werden alle Prozesse im Kernel-Modus unterbrochen und Ressourcen
 werden für Prozesse mit höherer Priorität freigegeben. Erst danach kann das
 System mit der Bearbeitung des neuen Prozesses beginnen.
 
-#grid(columns: (50%, 50%), 
-figure(image("./images/sched-real_time_interrupt.png", width: 76%)),
-figure(image("./images/sched-real_time_dispatch.png", width: 90%)),
+#grid(
+  columns: (50%, 50%),
+  figure(image("./images/sched-real_time_interrupt.png", width: 76%)),
+  figure(image("./images/sched-real_time_dispatch.png", width: 90%)),
 )
 
 == Priority-based Scheduling
@@ -2910,9 +2965,9 @@ Periode $p$, eine Frist $d$, und eine Bearbeitungszeit $t$. Die
 Bearbeitung eines Prozesses muss im Zeitraum von 0 bis zur Frist $d$, die
 wiederum kleiner oder gleich der Periode $p$ ist, abgeschlossen sein. Die
 periodische Aufgaberate gibt an, wie oft eine Aufgabe pro Zeiteinheit kommt,
-also $1/p$.
+also $1 / p$.
 
-Die Auslastung der CPU durch einen Prozess $P_i$ wird mit $U_i = t_i/p_i$
+Die Auslastung der CPU durch einen Prozess $P_i$ wird mit $U_i = t_i / p_i$
 berechnet, also als Verhältnis von Bearbeitungszeit zu Periode.
 
 #figure(image("./images/sched-real_time_prio_based.png", width: 90%))
@@ -2976,50 +3031,51 @@ Programmatisch lassen sich die Planungsrichtlinien mit den POSIX-Funktionen
 pthread_attr_getsched_policy und pthread_attr_setsched_policy abrufen und
 setzen.
 
-```c
-#include <pthread.h>
-#include <stdio.h>
-#define NUM_THREADS 5
+#box()[
+  ```c
+  #include <pthread.h>
+  #include <stdio.h>
+  #define NUM_THREADS 5
 
-// Each thread will begin control in this function
-void *runner(void *param) {
-  // do some work ...
-  pthread_exit(0);
-}
-
-int main(int argc, char *argv[]) {
-  int i, policy;
-  pthread_t tid[NUM_THREADS];
-  pthread_attr_t attr;
-
-  // get the default attributes
-  pthread_attr_init(&attr);
-
-  // get the current scheduling policy
-  if (pthread_attr_getschedpolicy(&attr, &policy) != 0) {
-    fprintf(stderr, "Unable to get policy.∖n");
-  } else {
-    if (policy == SCHED_OTHER)
-      printf("SCHED_OTHER∖n");
-    else if (policy == SCHED_RR)
-      printf("SCHED_RR∖n");
-    else if (policy == SCHED_FIFO)
-      printf("SCHED_FIFO∖n");
+  // Each thread will begin control in this function
+  void *runner(void *param) {
+    // do some work ...
+    pthread_exit(0);
   }
 
-  // set the scheduling policy - FIFO, RR, or OTHER
-  if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) != 0)
-    fprintf(stderr, "Unable to set policy.∖n");
+  int main(int argc, char *argv[]) {
+    int i, policy;
+    pthread_t tid[NUM_THREADS];
+    pthread_attr_t attr;
 
-  // create the threads
-  for (i = 0; i < NUM_THREADS; i++)
-    pthread_create(&tid[i],&attr,runner,NULL);
+    // get the default attributes
+    pthread_attr_init(&attr);
 
-  // now join on each thread
-  for (i = 0; i < NUM_THREADS; i++)
-    pthread_join(tid[i], NULL);
-}
-```
+    // get the current scheduling policy
+    if (pthread_attr_getschedpolicy(&attr, &policy) != 0) {
+      fprintf(stderr, "Unable to get policy.∖n");
+    } else {
+      if (policy == SCHED_OTHER)
+        printf("SCHED_OTHER∖n");
+      else if (policy == SCHED_RR)
+        printf("SCHED_RR∖n");
+      else if (policy == SCHED_FIFO)
+        printf("SCHED_FIFO∖n");
+    }
+
+    // set the scheduling policy - FIFO, RR, or OTHER
+    if (pthread_attr_setschedpolicy(&attr, SCHED_FIFO) != 0)
+      fprintf(stderr, "Unable to set policy.∖n");
+
+    // create the threads
+    for (i = 0; i < NUM_THREADS; i++)
+      pthread_create(&tid[i],&attr,runner,NULL);
+
+    // now join on each thread
+    for (i = 0; i < NUM_THREADS; i++)
+      pthread_join(tid[i], NULL);
+  }
+  ```]
 
 == Linux Scheduling
 Im Linux-System gibt es zwei Planertypen: den völlig fairen Planer (CFS) und
@@ -3037,6 +3093,400 @@ zwischen 0 und 99, mit SCHED_FIFO und SCHED_RR), während normale Prozesse
 niedrigere Priorität haben (Werte zwischen 100 und 139, was auf die Nice-Werte
 [−20, 19] abgebildet wird)
 
-= Libraries
+= Compiling, Linking, Loading and Libraries
+== Compiling
+Ein Linker erstellt mit einem oder mehreren Objectfiles eine Ausführbare
+Programmdatei. Dabei können auch sogenannte Libraries eingebunden werden. Diese
+können statisch(static) und dynamisch(dynamic/shared) sein.
 
+Bei einer Statischen Library wird der Code direkt in den Programmcode
+eingebunden wohingegen dynamische Libraries erst beim Ausführen des Programms
+geladen werden.
+
+Eine Kompiliertes Programm besteht aus einen Header, dem Objectcode und aus dem
+Symbol table der aus externen definitionen und externen Referenzen besteht.
+
+#figure(image("./images/link-exec.png", width: 80%))
+
+== Ausführung eines Programms
+Auf UNIX-Systemen wird das Programm mit einem loader gelesen. Dieser liest alle
+Daten und die Code-Segmente in einen Cache Buffer. Der Code wird als read-only
+Bereich und die initialisierten Daten als read/write-able in den Addressraum
+geladen.
+
+
+Während dem Laden finden viele Optimierungen statt. Daten die mit 0
+initialisiert werden müssen zum Beispiel nicht gelesen werden und Teile des
+Programms werden erst bei der Benutzung geladen. Außerdem kann der Code des
+Programms geteilt werden, wenn mehrere Instanzen des gleichen Programms bzw.
+Teile und Funktionen gleichzeitig ausgeführt werden.
+
+
+#grid(
+  columns: (60%, 40%),
+  [
+    Der Prozessspeicher unter UNIX sieht wie folgt aus:
+
+    Der Heap wird am Anfang der Laufzeit des Programms mit malloc alloziert.
+    Dadurch sind Compiler, sowie Linker nicht involviert. Die Variablen des
+    Programms werden vom Programm selbst verwaltet und befinden sich in dem
+    Heap.
+
+
+    Der Stack wird auch am Anfang der Laufzeit des Programms alloziert. Das
+    Layout des Heaps wird durch den Compiler festgelegt. Variablen auf dem
+    Stack werden als pointer relativ zu dem Stackpointer dargestellt. Der
+    Linker ist nicht involviert und der Stack wird wie bereits angesprochen vom
+    Compiler organisiert und gemanaged.
+
+  ],
+  figure(image("./images/link-mem.png", width: 80%)),
+)
+Globale Daten und Code werden durch den Compiler alloziert, wobei das Layout
+durch den Linker erstellt wird. Der Compiler erstellt symbolische Referenzen
+und der Linker übersetzt diese Referenzen.
+
+*Beispiel:*
+Ein Programm das nur aus dem Aufruf `printf("hello world\n");` besteht, und mit
+dem Befehlt `cc -m32 -fno-builtin -S hello.c`. Die flag `-S` bewirkt, dass da
+Programm ohne den Assembler kompiliert wird.
+
+Der erstellte Code bzw. `hello.s` sieht dann wie folgt aus:
+```asm
+.LC0:
+  .string "hello world\n"
+main:
+  ...
+  subl $12, %esp
+  pushl $.LC0
+  call printf
+  ...
+  ret
+```
+
+Wie zu sehen ist enthält der code eine symbolische Referenz auf `printf`.
+
+== Linker
+Der Linker – unter UNIX aufrufbar mit dem Befehl ld – wird normalerweise
+automatisch vom Compiler gestartet. Dies kann beispielsweise im Befehl gcc -v
+hello.c nachvollzogen werden. GCC ruft dabei collect2 auf, einen internen
+Wrapper für ld.
+
+Generell führt der Linker 3 Operationen aus:
++ Sammle alle Teile des Programms zusammen (objectfiles)
++ unify/vereinige alle gleichen Segmente
++ Passe die Addressen des Codes und den Daten je nach Programm an
+
+Das Ergebnis ist eine ausführbare Datei bzw. ein ausführbares Programm.
+
+C- und C++-Compiler können immer nur eine einzelne Translation Unit (bzw. eine
+Quelldatei) „sehen“. Deshalb ist es nicht möglich, direkt aus einem einzelnen
+Source-File ein komplettes, ausführbares Programm zu generieren. Dafür ist der
+Linker notwendig. Neben dem bloßen Zusammenfügen der einzelnen kompilierten
+(nun „object files“ genannten) Source Files führt der Linker zusätzliche
+Optimierungen am Code aus. Dabei wird die Reihenfolge der Codesequenzen meist
+nicht verändert, jedoch kann die Reihenfolge der Funktionsaufrufe optimiert
+werden. Dies führt zu einer besseren Cache-Ausnutzung und dazu, dass
+unbenötigte Segmente entfernt werden.
+
+*Einfacher Linker:* \
+*1. Durchlauf:*
+- Gleiche Code-Segmente werden zusammengefasst und so angeordnet, dass sie sich
+  nicht überschneiden.
+- Die Symbol-Tabellen der einzelnen Object-Files werden eingelesen und zu einer
+  globalen Symbol-Tabelle ohne Duplikate zusammengefasst.
+- Die virtuellen Adressen aller Segmente (als Offset zur Basisadresse) werden
+  berechnet.
+
+*2. Durchlauf:*
+- Alle Referenzen auf Symbole werden anhand der globalen Symbol-Tabelle
+  ersetzt.
+- Der endgültige Code wird zurückgegeben.
+
+
+Die Symboltabelle speichert Informationen über das Programm – z. B. Namen,
+Größe, alte und neue Position der Segmente. Außerdem werden die einzelnen
+Symbole mit Namen, Typ und Offset gespeichert.
+
+Die vom Assembler erstellten Object-Files enthalten Code mit einem Offset,
+wobei die Start- bzw. Basisadresse (0) ans Ende der .s-Datei geschrieben wird.
+
+#figure(image("./images/link-sym_table_asm.png", width: 40%))
+
+Der Linker liest diese .s-Dateien erneut ein, berechnet die tatsächlichen
+Segmentgrößen und speichert alle verwendeten Symbole nebst ihrem Code in einer
+abschließenden, globalen Symboltabelle mit endgültigen virtuellen Adressen.
+
+#figure(image("./images/link-sym_table_linker.png", width: 80%))
+
+*Beispiel:*
+#box()[
+  - Source Files:
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    [
+      main.c
+      ```c
+      extern float sin();
+      extern int printf();
+      extern int scanf();
+      float val = 0.0f;
+
+      int main() {
+        static float x = 0.0f;
+        printf("enter number: ");
+        scanf("%f", &x);
+        val = sin(x);
+        printf("sine is %f\n", val);
+      }
+      ```
+    ],
+    [
+      math.c
+      ```c
+      float sin(float x) {
+        float tmp1, tmp2;
+        static float res = 0.0f;
+        static float lastx = 0.0f;
+        if(x != lastx) {
+          lastx = x;
+          // compute sin(x)
+        }
+        return res;
+      }
+      ```
+    ],
+
+    [
+      libc
+      ```c
+      int scanf(char *fmt, ...) { /* ... */ }
+      int printf(char *fmt, ...) { /* ... */ }
+      ```
+    ],
+  )]
+
+#box()[
+  - Object Files:
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    align: center,
+    [
+      main.o
+      #figure(image("./images/link-example_main_o.png", width: 80%))
+    ],
+    [
+      math.o
+      #figure(image("./images/link-example_math_o.png", width: 76%))
+    ],
+  )]
+
+#box()[
+  - Linker Pass 1: Reorganization:
+    #figure(image("./images/link-example_pass_1.png", width: 90%))
+]
+
+#box()[
+  - Linker Pass 2: Relocation:
+  #grid(
+    columns: (50%, 50%),
+    figure(image("./images/link-example_pass_2_1.png", width: 90%)),
+    figure(image("./images/link-example_pass_2_2.png", width: 90%)),
+  )
+  Die Referenzen (rechts) werden meistens nicht mit gespeichert. Diese können
+  jedoch für das Debuggen genutzt werden.
+]
+
+#box()[
+  - Final Output:
+  #grid(
+    columns: (60%, 40%),
+    [
+      Die Referenzen (hier nicht zu sehen) werden mit der globalen Symboltabelle
+      überarbeitet.
+    ],
+    figure(image("./images/link-example_final.png", width: 80%)),
+  )
+]
+
+== Metadaten in Ausführbaren Dateien
+=== Tool `nm`
+#grid(
+  columns: (60%, 40%),
+  [
+    ```c
+    int uninitialized;
+    int initialized = 1;
+    const int constant = 2;
+
+    int main() {
+      return 0;
+    }
+    ```
+
+    const Variablen haben den Typen R, was bedeutet das diese im read-only
+    Speicher liegen. Uninitialisierte Daten haben Typ B und liegen in dem BBS
+    Segment.
+  ],
+  figure(image("./images/link-nm.png", width: 90%)),
+)
+Dieser ist nicht Teil des Programms und kann in den Speicherpages die mit 0
+initialisiert werden gefunden werden.
+
+=== Tool `objdump`
+#figure(image("./images/link-objdump.png", width: 80%))
+
+== Name Mangling
+Funktionen in C++ (bzw. Objektorientierten Sprachen) können den selben Namen
+mit unterschiedlichen Funktionsparametern haben. Dies wird auch Overloading
+genannt.
+
+#figure(image("./images/link-mangling.png", width: 90%))
+
+Der Compiler benutzt name mangling um Funktionen zu unterscheiden: Er erstellt
+für jede Funktion aufgrund der name mangling Regeln einen eindeutigen Namen.
+Dies passiert nicht nur für Funktionen sondern auch für namespaces, ihre member
+functions und operators. Die erstellten mangled names sind nicht cross compiler
+kompatibel.
+
+#box()[
+  *Initialisierung:*
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    [
+      #figure(image("./images/link-mangling_init_1.png", width: 90%))
+      #figure(image("./images/link-mangling_init_2.png", width: 90%))
+    ],
+    [
+      Die Initialisierung findet vor dem Aufruf von main statt. Hierbei wird ein
+      plattformspezifischer Mechanismus verwendet. Der Compiler erzeugt in jedem
+      Object File, das Initialisierungscode enthält, entsprechenden Code. Der
+      Linker generiert dann eine Funktion \_\_main, die sämtliche
+      Initialisierungscodes aufruft, bevor das eigentliche main-Programm startet.
+    ],
+  )]
+
+#box()[
+  *Zusatz Informationen:*
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    [
+      #figure(image("./images/link-additional_information.png", width: 90%))
+    ],
+    [
+      Wird eine Exception geworfen werden alle Stack Variablen zerstört. Alle
+      Variablen die durch die Exception betroffen sind müssen gefunden und
+      zerstört werden, bis die Exception gehandled wird. Diese Informationen
+      müssen in speziellen Programm Sektionen gespeichert werden.
+
+      Debug Symbole sind weitere Daten die gespeichert werden. Sie müssen alle
+      Variablen-, Funktions-, usw. Namen und die Position im Code speichern.
+    ],
+  )]
+
+== Linker Typen und Libraries
+=== Typ 0 - dynamic Linking
+Wird dynamisch gelinked ist nicht vorher spezifiziert, wann dies passiert.
+Potentiell kann erst zur Laufzeit des Programms mit einer Library gelinked
+werden. Z.b. wird dieser Ansatz of für Plugins verwendet. Dies entspricht dem
+Prinzip des lazy-loadings. Code wird erst geladen wenn er wirklich benötigt
+wird.
+
+#figure(image("./images/link-type_0.png", width: 80%))
+
+=== Typ 1 - static shared Libraries
+So gut wie alle Programme werden mit der C-Standardlibrary gelinked. Diese
+benötigt Platz im Programm. Jedoch wird System weit nur eine Implemenation der
+Standardlibrary benötigt. LibC befindet sich nicht in jedem Programm sondern
+sie wird statisch mit dem Programm gelinked.
+
+Das Programm bekommt ein "Shared library segment" an der selben virtuellen
+Adresse jedes Programms. Jeder Library wird eine einzigartige Adresse in diesem
+Segment zugeordnet und der Linker linked das Programm mit der wirklichen
+Library. Kein Code der Library wird in das Programm übernommen.
+
+Somit können mehrere Programme den *selben* Code ausführen.
+
+=== Typ 2 - dynamic shared Libraries
+Typ 1 Libraries benötigen das systemweite festlegen bzw. preoallocaten im
+Adressspeicher für bestimmte Libraries. Dies ist aufwändig und nicht besonders
+elegant.
+
+Um dies eleganter (und auch sicherer) zu Lösen erlauben wir jeder Library an
+egal welcher Speicher Adresse zu liegen. Der Linker weiß nun jedoch nicht ob
+die Symbole wirklich vorhanden sind. Die Lösung dafür ist die Benutzung von
+sogenannten Stub-objects. Diese enthalten Symbole ohne Implementation.
+
+#box()[
+  Damit Funktionen aufgerufen werden können die an virtuell jeder Speicheradresse liegen können verwenden wir sogenannten position independent code (PIC). Dies benötigt einen weiteren Schritt:
+  #grid(
+    columns: (50%, 50%),
+    gutter: 1em,
+    figure(image("./images/link-pic_1.png", width: 80%)), figure(image("./images/link-pic_2.png", width: 80%)),
+  )]
+
+== Code = Data
+Es gibt keinen wirklichen Unterschied zwischen Code und Daten. Code ist eine
+Sequenz an Instruktionen, die auf der CPU ausgeführt werden können und keine
+illegalen Instruktionen bzw. nicht ausführbare Daten enthalten. Code kann
+demnach auch während der Laufzeit geschrieben und gelesen werden.
+
+Der Grund ist, dass dynamische Code Generierung einen extremen boost an
+Geschwindigkeit mit sich bringt. Interpretations Overhead in dynamischen
+Programmiersprachen wird eliminiert und die Geschwindigkeit verbessert sich um
+einen Faktor $[10,100]$.
+
+Generell werden für Optimierungen Informationen benötigt. Diese Information
+sind zahlreicher während der Ausführung eines Programms als bei dem Kompilieren
+des Programms.
+
+Nachteil der dynamischen Code Generierung ist das sich die Laufzeit des
+Programms auf die Programmlaufzeit + die Generierungslaufzeit erhöht.
+
+#box()[
+  *Beispiel:*
+  #grid(
+    columns: (47%, 50%),
+    gutter: 1em,
+    [
+      Bei der dynamischen Codegenerierung wird zunächst die binäre Kodierung von
+      Assembler-Befehlen ermittelt. Anschließend wird dieser Binärcode in einen
+      Speicherbereich (Buffer) geschrieben. Um Sicherheitslücken wie Buffer
+      Overflow Exploits zu vermeiden, hat der Stack normalerweise keine
+      Ausführungsrechte. Deshalb müssen explizit Ausführungsrechte für den
+      Stack-Speicher gesetzt werden, damit der Code dort ausgeführt werden kann.
+    ],
+    figure(image("./images/link-dynamic_code_gen.png", width: 100%)),
+  )]
+
+Unter Unix x86-64 werden die ersten beiden Funktionsparameter in den
+Registern rdi und rsi übergeben. Schließlich wird der Code in einen
+Funktionszeiger des passenden Typs umgewandelt (gecastet), sodass er wie
+eine normale Funktion aufgerufen und ausgeführt werden kann.
+
+*Linking und Sicherheit:* \
+Ein Buffer Overflow kann dazu führen, dass ein Angreifer ausführbaren Code in
+den Speicher legt und durch Überschreiben einer Rücksprungadresse ausführt. Um
+das zu verhindern, sorgen Linker für Sicherheitsmechanismen: Erstens darf ein
+Speichersegment niemals gleichzeitig schreibbar und ausführbar sein
+(W^X-Regel). Zweitens erschwert die zufällige Anordnung von Speicherbereichen
+ASLR(Address Space Layout Randomization) gezielte Angriffe, da sich die
+Speicherorte beim Programmstart jedes Mal ändern. Dadurch werden Angriffe
+schwieriger, aber nicht unmöglich.
+
+== Alternative Linker
+GNU gold ist ein von Google entwickelter Linker der Alternativ zu GNU ld für besonders große C++ Projekte nützlich ist. Auf den meisten Systemen st er in dem package binutils enthalten.
+
+LLVM lld ist der default linker von LLVM (clang). Dieser ist signifikant schneller als zum Beispiel GNU gold.
+
+mold ist ein moderner Linker. Er wird als Ersatz für GNUs ld/gold und LLVMs lld verwendet und ist signifikant schneller als lld. mold macht sich hier neue Multi-Core CPUs zunutze.
+
+Um einen alternativen linker zu benutzen kann die flag `-f_use-ls=<linker>` mit dem Kompilieraufruf kombiniert werden. In Makefiles wird der Linker mit `LD = <linker>` festgelegt.
+
+*Performance Vergleich:*
+#figure(image("./images/link-alternative_linkes_comp.png", width: 80%))
 
