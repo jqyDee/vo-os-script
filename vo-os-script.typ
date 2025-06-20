@@ -13,7 +13,7 @@
   show heading: set block(above: 1.4em, below: 1em)
 
   set heading(numbering: "1.1")
-  
+
   // Title row.
   align(center)[
     #block(text(weight: 500, 1.55em, title))
@@ -3536,3 +3536,210 @@ Um einen alternativen linker zu benutzen kann die flag `-f_use-ls=<linker>` mit 
 *Performance Vergleich:*
 #figure(image("./images/link-alternative_linkes_comp.png", width: 80%))
 
+= Virtualisierung
+== Computer Stack
+#grid(
+  columns: (60%, 40%),
+  [
+    Das Betriebssystem läuft direkt auf der Hardware des Systems. Es
+    abstrahiert die Hardware und stellt eine Schnittstelle bereit, über die
+    Programme auf dieser Hardware ausgeführt werden können. Programme können
+    mithilfe des Betriebssystems direkt mit der Hardware kommunizieren. Damit
+    Programme auf einer bestimmten Hardware lauffähig sind, müssen sie für den
+    zugrunde liegenden Instruktionssatz kompiliert werden.
+  ],
+  figure(image("./images/virt-stack.png", width: 80%)),
+)
+
+== Simulation
+#grid(
+  columns: (60%, 40%),
+  [
+    Wenn Programme nicht auf der vorhandenen Hardware ausgeführt werden können,
+    kann eine Simulation eingesetzt werden, die sämtliche Aspekte der
+    benötigten Hardware nachbildet. Dadurch lassen sich Programme trotz
+    inkompatibler Hardware ausführen, wobei sich sowohl das Betriebssystem als
+    auch das Programm exakt so verhalten wie auf einem realen System. Ein
+    Simulator ist dabei ein Programm, das auf einer anderen Hardware als dem
+    ursprünglich vorgesehenen System läuft. Die Implementierung einer solchen
+    Simulation ist jedoch äußerst komplex, ineffizient und meist sehr langsam.
+  ],
+  figure(image("./images/virt-stack_sim.png", width: 80%)),
+)
+
+== Emulation
+#grid(
+  columns: (60%, 40%),
+  [
+    Ein weiterer Ansatz, um Programme auszuführen, die nicht für die vorhandene
+    Hardware geschrieben wurden, ist die Emulation. Dabei werden sowohl das
+    Betriebssystem als auch das Programm emuliert. Das bedeutet, dass sich
+    Programm und Betriebssystem genauso verhalten, als würden sie auf der
+    ursprünglichen Hardware laufen. Ein Emulator ist ein Programm, das die
+    Hardware eines anderen Systems nachbildet. Im Vergleich zur Simulation sind
+    Emulationen oft einfacher zu implementieren und in der Regel auch etwas
+    schneller.
+  ],
+  figure(image("./images/virt-stack_em.png", width: 80%)),
+)
+
+Ein häufig verwendeter Emulator is QEMU. Er ist kostenlos und Open Source. Qemu
+hat unterschiedliche Modi der Emulation:
+
+- *User-mode emulation:* Ermöglicht das Ausführen von ARM Programmen auf x86
+  System.
+
+- *System emulation:* Ermöglicht das Ausführen eines Gastbetriebssystems
+  (potenziell auf einer anderen Hardware). Betriebssysteme wie Linux, Windows,
+  usw. können auf dem selben System bzw. für eine andere Architektur emuliert
+  werden
+
+- *Hosting:* Ermöglicht das Integrieren anderer Virtualisierungs Technologien,
+  wie KVM oder Xen.
+
+== Virtualisierungs
+#grid(
+  columns: (60%, 40%),
+  [
+    Die Virtualisierung ermöglicht es, Gastbetriebssysteme in einer virtuellen
+    Maschine auszuführen. Der Code der einzelnen Virtuellen Maschinen wird auf der
+    wirklichen Hardware des Systems ausgeführt. Dies benötigt die selbe Architektur
+    für Gast- und Hostbetriebssystem. Ein gewisses Maß an hardware support wird
+    benötigt. Die Virtuelle Maschine ist komplett isoliert zum Host bzw.
+    anderen Virtuellen Maschinen.
+  ],
+  figure(image("./images/virt-stack_virt_machine.png", width: 80%)),
+)
+
+== Hypervisor
+Ein Hypervisor (oder Virtual Machine Monitor, VMM) ist für das Erstellen,
+Verwalten und Ausführen von Virtuellen Maschinen zuständig. Der Hypervisor
+verwaltet die Ressourcen von allen virtuellen Maschinen, wie zum Beispiel die
+Anzahl der CPU Kerne, die größe des jeweilig nutzbaren RAMs, usw..
+ 
+=== Hypervisor - Typ 1
+#grid(
+  columns: (60%, 40%),
+  [
+    Ein Typ-1-Hypervisor, auch als „native Hypervisor“ oder
+    „Bare-Metal-Hypervisor“ bezeichnet, läuft direkt auf der Hardware des
+    Systems und benötigt kein Host-Betriebssystem. Er hat die vollständige
+    Kontrolle über die Hardware und verwaltet alle Ressourcen eigenständig.
+    Eine zusätzliche Abstraktionsschicht ist nicht erforderlich, da der
+    Hypervisor die Hardware direkt anspricht und selbst abstrahiert.
+
+    Beispiele hierfür sind Microsoft Hyper-V oder Citrix XenServer.
+  ],
+  figure(image("./images/virt-stack_hyper_1.png", width: 80%)),
+)
+
+=== Hypervisor - Typ 2
+#grid(
+  columns: (60%, 40%),
+  [
+    Ein Typ-2-Hypervisor, auch als „Hosted Hypervisor“ bezeichnet, läuft auf
+    einem bestehenden Betriebssystem. Der Hypervisor wird dabei wie ein
+    normaler Prozess auf dem Host-Betriebssystem ausgeführt. Das
+    Host-Betriebssystem bemerkt nicht, dass zusätzlich weitere
+    Gastbetriebssysteme auf dem System laufen. Potenziell können mehrere
+    Hypervisoren gleichzeitig auf dem System betrieben werden. Dieser Ansatz
+    ist in der Regel langsamer, da die Kommunikation zwischen
+    Host-Betriebssystem und Hypervisor zusätzliche Ressourcen benötigt.
+
+    Beispiele hierfür sind VMware Workstation oder Oracle VirtualBox.
+  ],
+  figure(image("./images/virt-stack_hyper_2.png", width: 80%)),
+)
+
+== Volle Virtualisierung
+Bei einer vollständigen Virtualisierung kann das Gastbetriebssystem unverändert
+auf der Hostmaschine ausgeführt werden. Das Gastbetriebssystem erkennt dabei
+nicht, dass es in einer virtuellen Maschine läuft. In der Regel wird hierfür
+ein Typ-1-Hypervisor verwendet. Die virtuelle Maschine ist vollständig isoliert
+und kann nur Daten bzw. Attribute innerhalb der eigenen Umgebung verändern. Um
+dies zu ermöglichen, wird Hardware-Unterstützung benötigt, wie zum Beispiel
+Intel VT-x oder AMD-V für die x86-64-Architektur.
+
+== Virtualisiserung Implementation
+Ursprünglich hatte x86 keine Schutzmechanismen (“real mode”), sodass alle
+Prozesse auf alles zugreifen konnten. Mit dem Protected Mode wurde es möglich,
+den Zugriff von Anwendungen einzuschränken. Der Prozessor startet im Real Mode
+und wechselt dann in den Protected Mode. Das Betriebssystem nutzt Ring 0 für
+privilegierte Instruktionen (Kernel Mode), während normale Anwendungen in Ring
+3 (User Mode) laufen.
+
+#figure(image("./images/virt-protection_rings.png", width: 50%))
+
+Ring 0 erlaubt den Zugriff auf alle CPU-Befehle und die Hardware, während Ring
+3 keinen direkten Zugriff auf die Hardware erlaubt und privilegierte Befehle
+nicht ausgeführt werden können. Fehler in Ring 3 werden vom Betriebssystem in
+Ring 0 abgefangen und verarbeitet. Die Ringe 1 und 2 waren ursprünglich für
+Ein-/Ausgabe-Operationen gedacht, werden aber von modernen Betriebssystemen wie
+Windows oder Linux kaum verwendet. Operationen in Ring 1 oder 2 verursachen
+zusätzlichen Aufwand, da sie oft einen Wechsel zu Ring 0 erfordern.
+
+=== Virtueller Kernel Modus:
+Benutzercode in einer virtuellen Maschine kann im Ring 3 ausgeführt werden und
+hat damit keinen Zugriff auf kritische Hardware. Der Kernel des Gastsystems
+weiß jedoch nicht, dass er virtualisiert ist und möchte daher in Ring 0 laufen.
+Das Host-Betriebssystem darf dem Gast-Kernel aber keinen Zugriff auf Ring 0
+erlauben, da sonst die virtuelle Maschine verlassen werden könnte. Daher muss
+das Gastbetriebssystem sicher innerhalb der virtuellen Maschine eingeschlossen
+werden.
+
+=== Virtuelle CPU (VCPU)
+Der Hypervisor speichert den CPU-Zustand jeder virtuellen Maschine. Wenn eine
+virtuelle Maschine ausgeführt werden soll, kann der Hypervisor auf den
+gespeicherten VCPU-Zustand zugreifen und diesen wiederherstellen. Das
+funktioniert gut für normalen, nicht privilegierten Code. Es stellt sich jedoch
+die Frage, wie damit Code vom Gast-Betriebssystem-Kernel umgegangen wird.
+
+=== Trap and Emulate
+#figure(image("./images/virt-trap_emulate.png", width: 50%))
+
+Der Virtual Machine Monitor (VMM) stellt jeder virtuellen Maschine zwei Modi
+zur Verfügung: den virtuellen User- und den virtuellen Kernel-Modus. Beide
+laufen im echten User-Modus auf der Hardware. Das Gastbetriebssystem darf nicht
+in den echten Kernel-Modus wechseln, sondern nur in den vom VMM
+bereitgestellten virtuellen Kernel-Modus.
+
+Wenn das Gastbetriebssystem versucht, eine privilegierte Instruktion im
+User-Mode auszuführen, entsteht ein Fehler. Der Virtual Machine Monitor (VMM)
+erhält dadurch die Kontrolle, analysiert den Fehler und emuliert die Wirkung
+der privilegierten Instruktion. Anschließend gibt der VMM die Kontrolle wieder
+an das Gastbetriebssystem zurück.
+
+Benutzercode in der virtuellen Maschine verursacht keinen Performance-Verlust.
+Kernelcode dagegen muss vom Hypervisor abgefangen und emuliert werden, was die
+Leistung verringert. Dieser Overhead tritt bei jeder weiteren virtuellen
+Maschine erneut auf.
+
+=== Binary Translation
+#figure(image("./images/virt-bin_translation.png", width: 50%))
+
+Bei sehr alten x86-CPUs entsteht bei privilegierten Befehlen kein Fehler für
+Trap-and-Emulate. Deshalb analysiert der Virtual Machine Monitor beim Eintritt
+in den virtuellen Kernel-Mode den Instruktionsstrom. Normale Befehle werden
+direkt ausgeführt, während privilegierte Befehle in nicht privilegierte
+übersetzt werden. Die Nebenwirkungen werden dabei im VCPU-Zustand gespeichert.
+
+Das Lesen, Parsen, Übersetzen und Ersetzen von Gast-Kernel-Code ist sehr
+langsam. Dieser Performance-Verlust kann jedoch verringert werden, indem die
+Übersetzung nur einmal durchgeführt und das Ergebnis im VMM zwischengespeichert
+wird. Beim nächsten Mal kann dann das zwischengespeicherte Ergebnis verwendet
+werden.
+
+=== Shadow Page Tables
+Der Virtual Machine Monitor (VMM) muss auch den Zugriff auf den virtuellen
+Speicher verwalten. Das Gastbetriebssystem darf nicht direkt auf die echten
+Seitentabellen zugreifen, da es sonst aus der virtuellen Maschine ausbrechen
+könnte. Deshalb verwaltet der VMM sogenannte Shadow Page Tables und fängt
+Zugriffe darauf ab, um sie in Software zu emulieren.
+
+== Paravirtualisierung und Hardware Support
+
+== VM Operationen
+
+== Betriebssystem Virtualisierung
+
+= Memory Management
