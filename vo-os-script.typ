@@ -1,4 +1,50 @@
-#import "@local/templates:0.1.0": *
+#let generic(date: none, title: none, title_extra: none, body) = {
+  let author = "Matti Fischbach"
+  let email = "matti.fischbach@web.de"
+  let title = title + " " + title_extra
+
+  set document(author: author, title: title)
+
+  show math.equation: set text(weight: 400)
+
+  set page(margin: 1in, numbering: "1", number-align: center)
+  set text(font: "New Computer Modern")
+  show raw: set text(font: "New Computer Modern Mono")
+  show heading: set block(above: 1.4em, below: 1em)
+
+  set heading(numbering: "1.1")
+  
+  // Title row.
+  align(center)[
+    #block(text(weight: 500, 1.55em, title))
+    #v(1em, weak: true)
+    #date
+  ]
+
+  // Author information.
+  pad(
+    top: 0.5em,
+    bottom: 0.5em,
+    x: 2em,
+    grid(
+      columns: 1fr,
+      gutter: 1em,
+      align(center)[
+        #author \
+        #email
+      ]
+    ),
+  )
+
+  // Main body.
+  set par(leading: 0.65em, spacing: 1.00em, first-line-indent: 0em, justify: true)
+
+  set table(stroke: none)
+  set table.vline(stroke: 0.5pt)
+  set table.hline(stroke: 0.5pt)
+
+  body
+}
 
 #show: generic.with(
   title: "VO Operating Systems",
