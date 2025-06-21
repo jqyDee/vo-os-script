@@ -71,13 +71,14 @@
 #v(2cm)
 #align(center)[
   Der Sourcecode zu dem Script kann auf Github unter dem Link \
-  #link("https://github.com/jqyDee/vo-os-script")[https://github.com/jqyDee/vo-os-script] \
+  #link("https://github.com/jqyDee/vo-os-script")[#underline[https://github.com/jqyDee/vo-os-script]] \
   eingesehen werden!
 ]
 
 #pagebreak()
 
 #outline()
+
 #pagebreak()
 
 = Betriebssystem
@@ -3678,7 +3679,7 @@ Ein-/Ausgabe-Operationen gedacht, werden aber von modernen Betriebssystemen wie
 Windows oder Linux kaum verwendet. Operationen in Ring 1 oder 2 verursachen
 zusätzlichen Aufwand, da sie oft einen Wechsel zu Ring 0 erfordern.
 
-=== Virtueller Kernel Modus:
+=== Virtueller Kernel Modus
 Benutzercode in einer virtuellen Maschine kann im Ring 3 ausgeführt werden und
 hat damit keinen Zugriff auf kritische Hardware. Der Kernel des Gastsystems
 weiß jedoch nicht, dass er virtualisiert ist und möchte daher in Ring 0 laufen.
@@ -3737,9 +3738,113 @@ könnte. Deshalb verwaltet der VMM sogenannte Shadow Page Tables und fängt
 Zugriffe darauf ab, um sie in Software zu emulieren.
 
 == Paravirtualisierung und Hardware Support
+Wie in dem letzten Kapitel zu sehen ist benötigt die volle Virtualisierung
+eines System eine Menge Ressourcen, um dem Gastbetriebssystem vorzuspielen das
+es auf "reeler" Hardware läuft. 
+
+Eine Möglichkeit diesen Overhead klein zu halten, ist die Paravirtualisierung.
+Dabei weiß das Gastbetriebssystem das es in einer Virtuellen Maschine läuft. Es
+wird keine virtueller Kernel benötigt und das System kann den Hypervisor direkt
+nach privilegierten Operationen anfragen. Das Gastbetriebssystem muss jedoch
+die Paravirtualisierung unterstützen. 
+
+*Beispiel KVM:*
+Die KVM (Kernel Virtual Machine) auf Linux ist ein Kernel Modul, dass den
+Kernel ermöglicht als Hypervisor zu fungieren. Dieser Hypervisor ist ein Hybrid
+aus Typ-1 und Typ-2 Hypervisor. KVM unterstützt die volle Virtualisierung für
+die meisten Betriebssysteme.
+
+*Hardware support:*
+Die Hardware unterstützt die trap-and-emulate und die binary translation. Wie
+bereits angesprochen unter Intel VT-x und unter AMD AMD-V- Diese Erweiterungen
+ermöglichen dem Hostbetriebssystem das aufsetzen eines virtuellen Kernel Rings
+(bzw. Ring-0). Das Gastbetriebssystem denkt es befindet sich in Ring 0. 
+
+Durch den sogenannten Hardware Passthrough wird es virtuellen Maschinen
+ermöglicht direkt auf bestimmte Hardware Elemente zuzugreifen. Dieser
+Passthrough wird durch I/O MMU Virtualisierung ermöglicht (z.b. AMD-Vi und
+Intel VT-d) und erlaubt es PCI/e Geräte der virtuellen Maschine direkt zur
+Verfügung zu stellen. Die virtuelle Maschine hat demnach die volle Kontrolle
+über die Geräte.
 
 == VM Operationen
+- *Suspend:*
+Der VMM/Hypervisor kann die virtuelle Maschine Suspendieren. Dadurch
+bekommt die virtuelle Maschine keine CPU Zeit mehr. Das Gastbetriebssystem ist
+eingefroren. Dies kann genutzt werden um den internen Status des Systems
+auszulesen und zu prüfen. Der eingefrorene Zustand kann nun zudem auch auf eine
+Festplatte geschrieben werden. Die beinhaltet den Zustand der VCPU, des
+Speichers und den Zustand aller (virtuellen( Geräte.
+
+- *Resume:*
+Der VMM/Hypervisor kann die Ausführung einer Suspendierte virtuellen Maschine
+wieder fortsetzen. Dem Gastbetriebssystem war nicht bewusst, dass es
+suspendiert war. Dieses fortsetzen kann entweder durch das Laden von einer
+suspendierten virtuellen Maschine aus dem Speicher erfolgen. Diese Operation
+ist wesentlich schneller als das rebooten des Systems und stellt den genauen
+Zustand der virtuellen Maschine vor der Suspend Operation wieder her.
+
+- *Snapshot:*
+Erstellt ein "Bild" des Zustand der virtuellen Maschine. Dieser Zustand kann
+geladen werden um die virtuelle Maschine zu dem Zeitpunkt des Snapshots
+zurückzusetzen.
+
+- *Migration:*
+Durch die Migration ist es möglich den Zustand einer virtuellen Maschine auf
+einem anderen Host fortzusetzen. Da das Gastbetriebssystem nicht weiß, dass es
+in einer virtuellen Maschine gelaufen ist, merkt es den zugrundeliegenden
+Hardware wechsel nicht.
 
 == Betriebssystem Virtualisierung
+Das Betriebssystem kann eine isolierte Umgebung im Benutzerraum zur Verfügung
+stellen. Dies wird oft als Container bezeichnet. Ein Container beinhaltet nicht
+den gesamten Code eines gesamten Betriebssystems. Der Container benutzt den
+Kernel des Hostbetriebssystems. Der Container muss kompatibel mit dem Kernel
+des Hosts sein. Das starten und stoppen dieser Container ist besonders schnell
+und ermöglicht das Inkludieren von Programmen.
 
-= Memory Management
+*Beispiele:*
+
+Docker ist der am meisten genutzte Container Dienst heutzutage. Er ermöglicht
+es Benutzerdefinierte Container zu erstellen oder bereits vorhandene aus einer
+großen Bibliothek zu laden. Außerdem bietet Docker eine Kommunikation zwischen
+unterschiedlichen Containern.
+
+== Linux Namespaces
+Namespaces unter Linux ermöglichen es Prozesse und Ressourcen von einander zu
+trennen. Unterschiedliche Namespaces können sich gegenseitig nicht sehen.
+Namespaces werden von Docker genutzt um Container zu implementieren.
+
+== Compatibility Layers
+Windows und Linux Executbles sind nicht Crossplatform kompatibel. Windows
+benutzt das Portable Executable (PE) format. Linux das Executable and Linkable
+(ELF) Format. Beide Programmdateien beinhalten c86-64 bytecode. Der loader des
+Betriebssystem unterstützt jedoch nur das Format des jeweiligen Systems. Durch
+Kompatibilitätsebenen ist es jedoch möglich Windows Programme auf Linux und
+vice versa auszuführen.
+
+*Beispiel:*
+Wine ist ein Open Source Compatibility Layer der es erlaubt Windows Programme
+auf Windows auszuführen. Er ermöglicht es PE formatierte Programme zu laden und
+stellt die Windows API bereit. Wine ist kein Emulator und keine virtuelle
+Maschine.
+
+== Interpreter
+Ein Interpreter ist ein Programm, das Instruktionen eines Programmes ließt, und
+entsprechenden systemabhängigen Code zu den Instruktionen ausführt. Dies ist
+Deutlich langsamer als das ausführen von native Programmen.
+
+*Beispiele:* Python, Ruby, Basic, ...
+
+== Just-in-time Compiler
+Code wird zu Architektur unabhängigem Code kompiliert. Ein weiterer Compiler
+kompiliert diesen unabhängigen Code zu dem Plattform spezifischen Code. Dies
+ist schneller als ein Interpreter aber immer noch langsamer als native
+Programme.
+
+*Beispiel:*
+Die Java Virtual Machine liest Java Byte Code und kompiliert diesen mit einem
+JiT Compiler zu dem korrekten Code der Architektur. Dies ermöglicht es
+Programme zu unabhängigen Code zu kompilieren und die JVM ist für das
+übersetzen und ausführenn auf dem jeweiligen System zuständig.
+
